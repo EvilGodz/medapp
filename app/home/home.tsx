@@ -1,12 +1,13 @@
+import { registerForPushNotificationsAsync, scheduleMedicationReminder } from "@/utils/notifications";
+import { DoseHistory, getMedReminds, getTodaysDoses, MedRemind, recordDose } from "@/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Animated, Dimensions, StyleSheet, Modal, AppState, Alert } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Animated, AppState, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
-import { DoseHistory, getMedications, getTodaysDoses, Medication, recordDose } from "@/utils/storage";
-import { registerForPushNotificationsAsync, scheduleMedicationReminder } from "@/utils/notifications";
-import { useFocusEffect } from "@react-navigation/native";
 
 const { width } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -81,15 +82,18 @@ function CircularProgress({
 
 export default function HomeScreen() {
     const router = useRouter();
-    const [todayMedications, setTodayMedications] = useState<Medication[]>([]);
+    const [todayMedications, setTodayMedications] = useState<MedRemind[]>([]);
     const [showNotifications, setShowNotifications] = useState(false);
     const [doseHistory, setDoseHistory] = useState<DoseHistory[]>([]);
-    const [medications, setMedications] = useState<Medication[]>([]);
+    const [medications, setMedications] = useState<MedRemind[]>([]);
+    const isLoadingRef = useRef(false);
 
     const loadMedications = useCallback(async () => {
+        if (isLoadingRef.current) return;
+        isLoadingRef.current = true;
         try {
             const [allMedications, todayDoses] = await Promise.all([
-                getMedications(),
+                getMedReminds(),
                 getTodaysDoses(),
             ]);
 
@@ -113,27 +117,29 @@ export default function HomeScreen() {
             // กำหนดวันที่วันนี้
             // completedDoses เฉพาะโดสของวันนี้
             const completedDoses = todayDoses.filter(
-              (dose) => dose.taken && new Date(dose.timestamp).toDateString() === today
+                (dose) => dose.taken && new Date(dose.timestamp).toDateString() === today
             ).length;
             // isDoseTaken เฉพาะโดสของวันนี้
             const isDoseTaken = (medicationsId: string) => {
-              return todayDoses.some(
-                (dose) =>
-                  dose.medicationId === medicationsId &&
-                  dose.taken &&
-                  new Date(dose.timestamp).toDateString() === today
-              );
+                return todayDoses.some(
+                    (dose) =>
+                        dose.medRemindId === medicationsId &&
+                        dose.taken &&
+                        new Date(dose.timestamp).toDateString() === today
+                );
             };
             // คำนวณ totalDoses จากจำนวน times ของแต่ละยา
             const totalDoses = todayMeds.reduce(
-              (sum, med) => sum + (med.times?.length || 0),
-              0
+                (sum, med) => sum + (med.times?.length || 0),
+                0
             );
             // clamp progress ไม่เกิน 1
             const progress = totalDoses > 0 ? Math.min(completedDoses / totalDoses, 1) : 0;
 
         } catch (error) {
             console.error("Error loading medications:", error);
+        } finally {
+            isLoadingRef.current = false;
         }
     }, []);
 
@@ -145,7 +151,7 @@ export default function HomeScreen() {
                 return;
             }
 
-            const medifications = await getMedications();
+            const medifications = await getMedReminds();
             for (const medication of medications) {
                 if (medication.reminderEnabled) {
                     await scheduleMedicationReminder(medication);
@@ -181,9 +187,20 @@ export default function HomeScreen() {
         }, [loadMedications])
     );
 
-    const handleTakeDose = async (medications: Medication) => {
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = await AsyncStorage.getItem('token');
+            const user = await AsyncStorage.getItem('user');
+            if (!token || !user) {
+                router.replace('/login/LoginScreen');
+            }
+        };
+        checkAuth();
+    }, []);
+
+    const handleTakeDose = async (medRemind: MedRemind) => {
         try {
-            await recordDose(medications.id, true, new Date().toISOString());
+            await recordDose(medRemind.id, true, new Date().toISOString());
             await loadMedications();
         } catch (error) {
             console.error("Error recording dose:", error);
@@ -194,27 +211,26 @@ export default function HomeScreen() {
     const today = new Date().toDateString();
     // completedDoses เฉพาะโดสของวันนี้
     const completedDoses = doseHistory.filter(
-      (dose) => dose.taken && new Date(dose.timestamp).toDateString() === today
+        (dose) => dose.taken && new Date(dose.timestamp).toDateString() === today
     ).length;
     // isDoseTaken เฉพาะโดสของวันนี้
-    const isDoseTaken = (medicationsId: string) => {
-      return doseHistory.some(
-        (dose) =>
-          dose.medicationId === medicationsId &&
-          dose.taken &&
-          new Date(dose.timestamp).toDateString() === today
-      );
-    };
+    const isDoseTaken = (medicationsId: string) =>
+        doseHistory.some(
+            (dose) =>
+                dose.medRemindId === medicationsId &&
+                dose.taken &&
+                new Date(dose.timestamp).toDateString() === today
+        );
     // คำนวณ totalDoses จากจำนวน times ของแต่ละยา
     const totalDoses = todayMedications.reduce(
-      (sum, med) => sum + (med.times?.length || 0),
-      0
+        (sum, med) => sum + (med.times?.length || 0),
+        0
     );
     // clamp progress ไม่เกิน 1
     const progress = totalDoses > 0 ? Math.min(completedDoses / totalDoses, 1) : 0;
 
     return (
-        <View style={{flex: 1, backgroundColor: '#f8f9fa'}}>
+        <View style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
             <ScrollView style={style.containter} showsVerticalScrollIndicator={false} >
                 <LinearGradient colors={["#1a8e2d", "#146922"]} style={style.header}>
                     <View style={style.headerContent}>
@@ -225,12 +241,12 @@ export default function HomeScreen() {
                                 </Text>
                             </View>
                             <TouchableOpacity style={style.notificationButton}
-                            onPress={() => setShowNotifications(true)}
+                                onPress={() => setShowNotifications(true)}
                             >
                                 <Ionicons name="notifications-outline" size={24} color="white" />
                                 {<View style={style.notificationBadge}>
                                     <Text style={style.notificationCount}>
-                                    {todayMedications.length}</Text></View>}
+                                        {todayMedications.length}</Text></View>}
                             </TouchableOpacity>
                         </View>
                         <CircularProgress
@@ -242,9 +258,11 @@ export default function HomeScreen() {
                     </View>
                 </LinearGradient>
 
-                <View style={{ paddingHorizontal: 20,
-                    paddingVertical: 20
-                 }}>
+                <View style={{
+                    paddingHorizontal: 20,
+                    paddingVertical: 20,
+                    marginBottom: 60,
+                }}>
                     <View style={style.sectionHeader}>
                         <Text style={style.sectionTitle}>รายการยาวันนี้</Text>
                         <Link href={"/calendar" as any} asChild>
@@ -258,7 +276,7 @@ export default function HomeScreen() {
                         <View style={style.emptyState}>
                             <Ionicons name="medical-outline" size={48} color='#ccc' />
                             <Text style={style.emptyStateText}>ไม่มีรายการยาสำหรับวันนี้</Text>
-                            <Link href="/medications/add" asChild>
+                            <Link href="/notification/add" asChild>
                                 <TouchableOpacity style={style.addMedicationButton}>
                                     <Text style={style.addMedicationButtonText}>เพิ่มยา</Text>
                                 </TouchableOpacity>
@@ -311,65 +329,67 @@ export default function HomeScreen() {
                     )}
 
                 </View>
-                <Modal visible={showNotifications} transparent={true} animationType="slide" onRequestClose={() => setShowNotifications(false)}>
+                <Modal
+                    visible={showNotifications}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowNotifications(false)}
+                >
                     <View style={style.modalOverlay}>
                         <View style={style.modalContent}>
-                            <Text style={style.modalTitle}>
-                                Notification
-                            </Text>
-                            <TouchableOpacity style={style.modalCloseButton}
-                                onPress={() => setShowNotifications(false)}
-                            >
-                                <Ionicons name="close" size={24} color="#333" />
-                            </TouchableOpacity>
-                        </View>
-                        {todayMedications.map((medication) => (
-                            <View style={style.notificationItem}>
-                                <View style={style.notificationIcon}>
-                                    <Ionicons name="medical" size={24} />
-                                </View>
-                                <View style={style.notificationContent}>
-                                    <Text style={style.notificationTitle}>{medication.name}</Text>
-                                    <Text style={style.notificationMessage}>{medication.dosage}</Text>
-                                    <Text style={style.notificationTime}>{medication.times[0]}</Text>
-                                </View>
+                            <View style={style.modalHeader}>
+                                <Ionicons name="notifications" size={28} color="#1a8e2d" />
+                                <Text style={style.modalTitle}>แจ้งเตือนวันนี้</Text>
+                                <TouchableOpacity
+                                    style={style.modalCloseButton}
+                                    onPress={() => setShowNotifications(false)}
+                                >
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
                             </View>
-                        ))}
+                            {todayMedications.length === 0 ? (
+                                <View style={{ alignItems: 'center', marginTop: 30 }}>
+                                    <Ionicons name="notifications-off-circle" size={48} color="#ccc" />
+                                    <Text style={{ color: '#888', marginTop: 10 }}>ไม่มีแจ้งเตือนสำหรับวันนี้</Text>
+                                </View>
+                            ) : (
+                                todayMedications.map((medication) => (
+                                    <View key={medication.id} style={style.notificationItem}>
+                                        <View style={style.notificationIcon}>
+                                            <Ionicons name="medical" size={24} color={medication.color} />
+                                        </View>
+                                        <View style={style.notificationContent}>
+                                            <Text style={style.notificationTitle}>{medication.name}</Text>
+                                            <Text style={style.notificationMessage}>{medication.dosage}</Text>
+                                            <Text style={style.notificationTime}>
+                                                {Array.isArray(medication.times)
+                                                    ? medication.times.join(', ')
+                                                    : medication.times}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ))
+                            )}
+                        </View>
                     </View>
-
                 </Modal>
             </ScrollView>
             <View style={style.bottomNav}>
-                <Link href="/home/home" asChild>
-                    <TouchableOpacity style={style.navItem}>
-                        <Ionicons name="home" size={24} color="#1a8e2d" />
-                        <Text style={style.navLabel}>หน้าหลัก</Text>
-                    </TouchableOpacity>
-                </Link>
-                <Link href="/medications/add" asChild>
-                    <TouchableOpacity style={style.navItem}>
-                        <Ionicons name="add-circle" size={28} color="#2E7D32" />
-                        <Text style={style.navLabel}>เพิ่มแจ้งเตือน</Text>
-                    </TouchableOpacity>
-                </Link>
-                <Link href="/calendar" asChild>
-                    <TouchableOpacity style={style.navItem}>
-                        <Ionicons name="calendar" size={24} color="#1976D2" />
-                        <Text style={style.navLabel}>ปฏิทิน</Text>
-                    </TouchableOpacity>
-                </Link>
-                <Link href="/history" asChild>
-                    <TouchableOpacity style={style.navItem}>
-                        <Ionicons name="time" size={24} color="#C2185B" />
-                        <Text style={style.navLabel}>ประวัติ</Text>
-                    </TouchableOpacity>
-                </Link>
-                <Link href="/home/Developer" asChild>
-                    <TouchableOpacity style={style.navItem}>
-                        <Ionicons name="code-slash" size={24} color="#888" />
-                        <Text style={style.navLabel}>Developer</Text>
-                    </TouchableOpacity>
-                </Link>
+                {[
+                    { href: '/home/home', icon: 'home', label: 'หน้าหลัก', color: '#1a8e2d', size: 24 },
+                    { href: '/notification/add', icon: 'add-circle', label: 'เพิ่มแจ้งเตือน', color: '#2E7D32', size: 28 },
+                    { href: '/medications/med', icon: 'medkit', label: 'ข้อมูลยา', color: '#2E7D32', size: 28 },
+                    { href: '/calendar', icon: 'calendar', label: 'ปฏิทิน', color: '#1976D2', size: 24 },
+                    { href: '/history', icon: 'time', label: 'ประวัติ', color: '#C2185B', size: 24 },
+                    // { href: '/home/Developer', icon: 'code-slash', label: 'Developer', color: '#888', size: 24 },
+                ].map(({ href, icon, label, color, size }) => (
+                    <Link key={href} href={href as any} asChild>
+                        <TouchableOpacity style={style.navItem}>
+                            <Ionicons name={icon as any} size={size} color={color} />
+                            <Text style={style.navLabel}>{label}</Text>
+                        </TouchableOpacity>
+                    </Link>
+                ))}
             </View>
         </View>
     )
@@ -561,66 +581,74 @@ const style = StyleSheet.create({
     },
     modalHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20
+        justifyContent: 'space-between',
+        marginBottom: 10,
     },
     modalTitle: {
         fontSize: 20,
-        fontWeight: "bold",
-        color: "#333"
+        fontWeight: 'bold',
+        color: '#1a8e2d',
+        flex: 1,
+        textAlign: 'center',
     },
     modalCloseButton: {
-        padding: 5
+        padding: 5,
     },
     notificationItem: {
         flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+        borderRadius: 14,
         padding: 15,
-        borderRadius: 12,
-        backgroundColor: "#f5f5f5",
-        marginBottom: 10
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        elevation: 2,
     },
     notificationIcon: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: "#E8F5E9",
+        backgroundColor: '#E8F5E9',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 15
+        marginRight: 15,
     },
     notificationContent: {
         flex: 1,
     },
     notificationTitle: {
         fontSize: 16,
-        fontWeight: "600",
-        color: "#333",
-        marginBottom: 4
+        fontWeight: 'bold',
+        color: '#333',
     },
     notificationMessage: {
         fontSize: 14,
-        color: "#666",
-        marginBottom: 4
+        color: '#666',
+        marginTop: 2,
     },
     notificationTime: {
-        fontSize: 12,
-        color: "#999"
+        fontSize: 13,
+        color: '#888',
+        marginTop: 2,
     },
     takenBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#E8F5E9",
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-      marginLeft: 10,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#E8F5E9",
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+        marginLeft: 10,
     },
     takenText: {
-      color: "#4CAF50",
-      fontWeight: "600",
-      fontSize: 14,
-      marginLeft: 4,
+        color: "#4CAF50",
+        fontWeight: "600",
+        fontSize: 14,
+        marginLeft: 4,
     },
     bottomNav: {
         flexDirection: 'row',
@@ -652,4 +680,4 @@ const style = StyleSheet.create({
         color: '#333',
         marginTop: 2,
     },
-  });
+});

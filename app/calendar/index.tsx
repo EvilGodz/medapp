@@ -1,42 +1,49 @@
-import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-} from "react-native";
-import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import {
-  getMedications,
-  getDoseHistory,
-  recordDose,
-  Medication,
-  DoseHistory,
-} from "../../utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  DoseHistory,
+  getDoseHistory,
+  getMedReminds,
+  MedRemind,
+  recordDose,
+} from "../../utils/storage";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+const THAI_MONTHS = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+];
 
 export default function CalendarScreen() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [medications, setMedications] = useState<Medication[]>([]);
+  const [medications, setMedications] = useState<MedRemind[]>([]);
   const [doseHistory, setDoseHistory] = useState<DoseHistory[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
+      setError(null);
       const [meds, history] = await Promise.all([
-        getMedications(),
+        getMedReminds(),
         getDoseHistory(),
       ]);
       setMedications(meds);
       setDoseHistory(history);
-    } catch (error) {
-      console.error("Error loading calendar data:", error);
+    } catch (err) {
+      setError('Error loading calendar data');
+      console.error("Error loading calendar data:", err);
     }
   }, [selectedDate]);
 
@@ -60,22 +67,17 @@ export default function CalendarScreen() {
     const calendar: React.ReactElement[] = [];
     let week: React.ReactElement[] = [];
 
-    // Add empty cells for days before the first day of the month
+    // cell เปล่าก่อนวันแรก
     for (let i = 0; i < firstDay; i++) {
       week.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
     }
 
     // Add days of the month
     for (let day = 1; day <= days; day++) {
-      const date = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        day
-      );
+      const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
       const isToday = new Date().toDateString() === date.toDateString();
       const hasDoses = doseHistory.some(
-        (dose) =>
-          new Date(dose.timestamp).toDateString() === date.toDateString()
+        (dose) => new Date(dose.timestamp).toDateString() === date.toDateString()
       );
 
       week.push(
@@ -95,14 +97,27 @@ export default function CalendarScreen() {
         </TouchableOpacity>
       );
 
-      if ((firstDay + day) % 7 === 0 || day === days) {
+      // If the week is complete, push it and reset
+      if (week.length === 7) {
         calendar.push(
-          <View key={day} style={styles.calendarWeek}>
+          <View key={`week-${day}`} style={styles.calendarWeek}>
             {week}
           </View>
         );
         week = [];
       }
+    }
+
+    // After all days, if any days remain in week, fill with empty cells and push
+    if (week.length > 0) {
+      while (week.length < 7) {
+        week.push(<View key={`empty-end-${week.length}`} style={styles.calendarDay} />);
+      }
+      calendar.push(
+        <View key={`last-week`} style={styles.calendarWeek}>
+          {week}
+        </View>
+      );
     }
 
     return calendar;
@@ -122,7 +137,7 @@ export default function CalendarScreen() {
       const medStartDate = new Date(medication.startDate);
       const medStart = new Date(medStartDate.getFullYear(), medStartDate.getMonth(), medStartDate.getDate());
       let durationDays = -1;
-      if (medication.duration.toLowerCase().includes('ongoing')) {
+      if (/(ongoing|ต่อเนื่อง)/i.test(medication.duration)) {
         durationDays = -1;
       } else {
         const match = medication.duration.match(/(\d+)/);
@@ -135,9 +150,13 @@ export default function CalendarScreen() {
       return selected >= medStart && (medEndNorm === null || selected <= medEndNorm);
     });
 
+    if (filteredMeds.length === 0) {
+      return <Text style={{ textAlign: 'center', color: '#888', marginTop: 20 }}>No medications for this date.</Text>;
+    }
+
     return filteredMeds.map((medication) => {
       const taken = dayDoses.some(
-        (dose) => dose.medicationId === medication.id && dose.taken
+        (dose) => dose.medRemindId === medication.id && dose.taken
       );
 
       return (
@@ -151,12 +170,12 @@ export default function CalendarScreen() {
           <View style={styles.medicationInfo}>
             <Text style={styles.medicationName}>{medication.name}</Text>
             <Text style={styles.medicationDosage}>{medication.dosage}</Text>
-            <Text style={styles.medicationTime}>{medication.times[0]}</Text>
+            <Text style={styles.medicationTime}>{medication.times.join(', ')}</Text>
           </View>
           {taken ? (
             <View style={styles.takenBadge}>
               <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              <Text style={styles.takenText}>Taken</Text>
+              <Text style={styles.takenText}>ทานแล้ว</Text>
             </View>
           ) : (
             // Only allow taking medication if selectedDate is today
@@ -169,14 +188,16 @@ export default function CalendarScreen() {
               // Check if missed (only for today)
               let isMissed = false;
               if (isToday) {
-                // Assume medication.times[0] is 'HH:mm' format
-                const [hour, minute] = medication.times[0]?.split(':').map(Number);
-                if (!isNaN(hour) && !isNaN(minute)) {
-                  const medTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour, minute, 0, 0);
-                  // Add 1 hour buffer
-                  const bufferTime = new Date(medTime.getTime() + 60 * 60 * 1000);
-                  if (today > bufferTime) {
-                    isMissed = true;
+                for (const time of medication.times) {
+                  const [hour, minute] = time.split(':').map(Number);
+                  if (!isNaN(hour) && !isNaN(minute)) {
+                    const medTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour, minute, 0, 0);
+                    // Add 1 hour buffer
+                    const bufferTime = new Date(medTime.getTime() + 60 * 60 * 1000);
+                    if (today > bufferTime) {
+                      isMissed = true;
+                      break;
+                    }
                   }
                 }
               }
@@ -185,7 +206,7 @@ export default function CalendarScreen() {
                   <View style={[styles.takenBadge, { backgroundColor: '#FFEBEE' }]}
                   >
                     <Ionicons name="close-circle" size={20} color="#E53935" />
-                    <Text style={[styles.takenText, { color: '#E53935' }]}>Missed</Text>
+                    <Text style={[styles.takenText, { color: '#E53935' }]}>ไม่ได้รับประทาน</Text>
                   </View>
                 );
               } else if (isToday) {
@@ -200,14 +221,14 @@ export default function CalendarScreen() {
                       loadData();
                     }}
                   >
-                    <Text style={styles.takeDoseText}>Take</Text>
+                    <Text style={styles.takeDoseText}>รับประทาน</Text>
                   </TouchableOpacity>
                 );
               } else {
                 return (
                   <View style={[styles.takeDoseButton, { backgroundColor: '#ccc' }]}
                   >
-                    <Text style={[styles.takeDoseText, { color: '#888' }]}>Take</Text>
+                    <Text style={[styles.takeDoseText, { color: '#888' }]}>รับประทาน</Text>
                   </View>
                 );
               }
@@ -235,40 +256,39 @@ export default function CalendarScreen() {
           >
             <Ionicons name="chevron-back" size={28} color="#1a8e2d" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Calendar</Text>
+          <Text style={styles.headerTitle}>ปฏิทินทานยา</Text>
         </View>
 
         <View style={styles.calendarContainer}>
           <View style={styles.monthHeader}>
             <TouchableOpacity
-              onPress={() =>
-                setSelectedDate(
-                  new Date(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth() - 1,
-                    1
-                  )
-                )
-              }
+              onPress={() => {
+                const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
+                setSelectedDate(newDate);
+                if (
+                  newDate.getFullYear() === new Date().getFullYear() &&
+                  newDate.getMonth() === new Date().getMonth()
+                ) {
+                  setSelectedDate(new Date());
+                }
+              }}
             >
               <Ionicons name="chevron-back" size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.monthText}>
-              {selectedDate.toLocaleString("default", {
-                month: "long",
-                year: "numeric",
-              })}
+              {THAI_MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear() + 543}
             </Text>
             <TouchableOpacity
-              onPress={() =>
-                setSelectedDate(
-                  new Date(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth() + 1,
-                    1
-                  )
-                )
-              }
+              onPress={() => {
+                const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
+                setSelectedDate(newDate);
+                if (
+                  newDate.getFullYear() === new Date().getFullYear() &&
+                  newDate.getMonth() === new Date().getMonth()
+                ) {
+                  setSelectedDate(new Date());
+                }
+              }}
             >
               <Ionicons name="chevron-forward" size={24} color="#333" />
             </TouchableOpacity>
@@ -287,12 +307,9 @@ export default function CalendarScreen() {
 
         <View style={styles.scheduleContainer}>
           <Text style={styles.scheduleTitle}>
-            {selectedDate.toLocaleDateString("default", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
+            {`${WEEKDAYS[selectedDate.getDay()]} ${selectedDate.getDate()} ${THAI_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear() + 543}`}
           </Text>
+          {error && <Text style={{ color: 'red', textAlign: 'center', margin: 10 }}>{error}</Text>}
           <ScrollView showsVerticalScrollIndicator={false}>
             {renderMedicationsForDate()}
           </ScrollView>

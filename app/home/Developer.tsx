@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { initDatabase } from '../../utils/database';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { DropDatabase, initDatabase } from '../../utils/database';
 
 export default function DeveloperScreen() {
   const [loading, setLoading] = useState(false);
@@ -13,6 +13,7 @@ export default function DeveloperScreen() {
     setLoading(true);
     setMessage(null);
     try {
+      await DropDatabase();
       await initDatabase();
       setMessage('Database initialized successfully!');
       Alert.alert('Success', 'Database initialized successfully!');

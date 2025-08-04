@@ -1,46 +1,49 @@
-import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  Alert,
-} from "react-native";
-import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
-  getDoseHistory,
-  getMedications,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
   DoseHistory,
-  Medication,
+  MedRemind,
   clearAllData,
+  getDoseHistory,
+  getMedReminds,
 } from "../../utils/storage";
 
-type EnrichedDoseHistory = DoseHistory & { medication?: Medication };
+type EnrichedDoseHistory = DoseHistory & { medRemind?: MedRemind };
 
 export default function HistoryScreen() {
   const router = useRouter();
   const [history, setHistory] = useState<EnrichedDoseHistory[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<
-    "all" | "taken" | "missed"
-  >("all");
+    "ทั้งหมด" | "รับประทานแล้ว" | "ไม่ได้รับประทาน"
+  >("ทั้งหมด");
 
   const loadHistory = useCallback(async () => {
     try {
       const [doseHistory, medications] = await Promise.all([
         getDoseHistory(),
-        getMedications(),
+        getMedReminds(),
       ]);
 
-      // Combine history with medication details
-      const enrichedHistory = doseHistory.map((dose) => ({
-        ...dose,
-        medication: medications.find((med) => med.id === dose.medicationId),
-      }));
+
+      const enrichedHistory = doseHistory.map((dose) => {
+        const found = medications.find((med) => med.id === String(dose.medRemindId));
+        return {
+          ...dose,
+          medRemind: found,
+        };
+      });
 
       setHistory(enrichedHistory);
     } catch (error) {
@@ -70,9 +73,9 @@ export default function HistoryScreen() {
   };
 
   const filteredHistory = history.filter((dose) => {
-    if (selectedFilter === "all") return true;
-    if (selectedFilter === "taken") return dose.taken;
-    if (selectedFilter === "missed") return !dose.taken;
+    if (selectedFilter === "ทั้งหมด") return true;
+    if (selectedFilter === "รับประทานแล้ว") return dose.taken;
+    if (selectedFilter === "ไม่ได้รับประทาน") return !dose.taken;
     return true;
   });
 
@@ -81,24 +84,24 @@ export default function HistoryScreen() {
 
   const handleClearAllData = () => {
     Alert.alert(
-      "Clear All Data",
-      "Are you sure you want to clear all medication data? This action cannot be undone.",
+      "ล้างข้อมูล",
+      "คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลการใช้ยา? การกระทำนี้ไม่สามารถย้อนกลับได้",
       [
         {
-          text: "Cancel",
+          text: "ยกเลิก",
           style: "cancel",
         },
         {
-          text: "Clear All",
+          text: "ล้างข้อมูล",
           style: "destructive",
           onPress: async () => {
             try {
               await clearAllData();
               await loadHistory();
-              Alert.alert("Success", "All data has been cleared successfully");
+              Alert.alert("สำเร็จ", "ข้อมูลการใช้ยาถูกล้างเรียบร้อยแล้ว");
             } catch (error) {
               console.error("Error clearing data:", error);
-              Alert.alert("Error", "Failed to clear data. Please try again.");
+              Alert.alert("Error", "ล้างข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง");
             }
           },
         },
@@ -123,7 +126,7 @@ export default function HistoryScreen() {
           >
             <Ionicons name="chevron-back" size={28} color="#1a8e2d" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>History Log</Text>
+          <Text style={styles.headerTitle}>ประวัติการทานยา</Text>
         </View>
 
         <View style={styles.filtersContainer}>
@@ -135,14 +138,14 @@ export default function HistoryScreen() {
             <TouchableOpacity
               style={[
                 styles.filterButton,
-                selectedFilter === "all" && styles.filterButtonActive,
+                selectedFilter === "ทั้งหมด" && styles.filterButtonActive,
               ]}
-              onPress={() => setSelectedFilter("all")}
+              onPress={() => setSelectedFilter("ทั้งหมด")}
             >
               <Text
                 style={[
                   styles.filterText,
-                  selectedFilter === "all" && styles.filterTextActive,
+                  selectedFilter === "ทั้งหมด" && styles.filterTextActive,
                 ]}
               >
                 All
@@ -151,33 +154,33 @@ export default function HistoryScreen() {
             <TouchableOpacity
               style={[
                 styles.filterButton,
-                selectedFilter === "taken" && styles.filterButtonActive,
+                selectedFilter === "รับประทานแล้ว" && styles.filterButtonActive,
               ]}
-              onPress={() => setSelectedFilter("taken")}
+              onPress={() => setSelectedFilter("รับประทานแล้ว")}
             >
               <Text
                 style={[
                   styles.filterText,
-                  selectedFilter === "taken" && styles.filterTextActive,
+                  selectedFilter === "รับประทานแล้ว" && styles.filterTextActive,
                 ]}
               >
-                Taken
+                รับประทานแล้ว
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.filterButton,
-                selectedFilter === "missed" && styles.filterButtonActive,
+                selectedFilter === "ไม่ได้รับประทาน" && styles.filterButtonActive,
               ]}
-              onPress={() => setSelectedFilter("missed")}
+              onPress={() => setSelectedFilter("ไม่ได้รับประทาน")}
             >
               <Text
                 style={[
                   styles.filterText,
-                  selectedFilter === "missed" && styles.filterTextActive,
+                  selectedFilter === "ไม่ได้รับประทาน" && styles.filterTextActive,
                 ]}
               >
-                Missed
+                ไม่ได้รับประทาน
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -201,15 +204,15 @@ export default function HistoryScreen() {
                   <View
                     style={[
                       styles.medicationColor,
-                      { backgroundColor: dose.medication?.color || "#ccc" },
+                      { backgroundColor: dose.medRemind?.color || "#ccc" },
                     ]}
                   />
                   <View style={styles.medicationInfo}>
                     <Text style={styles.medicationName}>
-                      {dose.medication?.name || "Unknown Medication"}
+                      {dose.medRemind?.name || "Unknown Medication"}
                     </Text>
                     <Text style={styles.medicationDosage}>
-                      {dose.medication?.dosage}
+                      {dose.medRemind?.dosage}
                     </Text>
                     <Text style={styles.timeText}>
                       {new Date(dose.timestamp).toLocaleTimeString("default", {
@@ -232,7 +235,7 @@ export default function HistoryScreen() {
                           color="#4CAF50"
                         />
                         <Text style={[styles.statusText, { color: "#4CAF50" }]}>
-                          Taken
+                          รับประทานแล้ว
                         </Text>
                       </View>
                     ) : (
@@ -248,7 +251,7 @@ export default function HistoryScreen() {
                           color="#F44336"
                         />
                         <Text style={[styles.statusText, { color: "#F44336" }]}>
-                          Missed
+                          ไม่ได้รับประทาน
                         </Text>
                       </View>
                     )}

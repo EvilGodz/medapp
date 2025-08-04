@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import * as LocalAuthentication from "expo-local-authentication";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const {width} = Dimensions.get("window");
 
@@ -16,6 +17,14 @@ export default function AuthScreen() {
     const router = useRouter();
 
     useEffect(() => {
+        const checkAuth = async () => {
+            const token = await AsyncStorage.getItem('token');
+            const user = await AsyncStorage.getItem('user');
+            if (!token || !user) {
+                router.replace('/login/LoginScreen');
+            }
+        };
+        checkAuth();
         checkBiometrics();
     }, []);
 

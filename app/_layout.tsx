@@ -1,8 +1,13 @@
 import { Stack } from "expo-router";
+import React, { useEffect } from 'react';
 import { StatusBar } from "react-native";
-import React from 'react';
+import { syncDoseHistoryWithBackend, syncMedRemindsWithBackend } from '../utils/storage';
 
 export default function RootLayout() {
+  useEffect(() => {
+    syncMedRemindsWithBackend();
+    syncDoseHistoryWithBackend();
+  }, []);
   return (
     <>
       <StatusBar barStyle={"light-content"} />

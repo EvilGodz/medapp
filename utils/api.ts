@@ -1,12 +1,13 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthResponse, ApiResponse, User } from '../types/types';
+import type { InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
+import { ApiResponse, AuthResponse, User } from '../types/types';
 
-// ใช้ IP address จาก ipconfig ของคุณ
-const API_BASE_URL = 'http://192.168.1.55:3000/api';
+// ใช้ CALL_API จาก .env (ผ่าน app.config.js หรือ app.json -> extra)
+const API_BASE_URL = 'http://192.168.1.89:3000';
 
 const api: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_BASE_URL + '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,7 +15,7 @@ const api: AxiosInstance = axios.create({
 
 // เพิ่ม token ใน header สำหรับ request ที่ต้องการ authentication
 api.interceptors.request.use(
-  async (config: AxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     const token = await AsyncStorage.getItem('token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -30,10 +31,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    // Handle 401 errors (unauthorized)
-    if (error.response?.status === 401) {
-      // Token might be expired, redirect to login
+    // Handle 401 or 403 errors (unauthorized or forbidden)
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Token might be invalid or expired, clear storage to force re-login
       AsyncStorage.multiRemove(['token', 'user']);
+      // Optionally, you can add code here to redirect the user to the login screen
     }
     return Promise.reject(error);
   }
@@ -132,6 +134,22 @@ export const authAPI = {
       throw error.response?.data || error.message;
     }
   }
+};
+
+export const medRemindAPI = {
+  getAll: async () => (await api.get('/medRemind')).data,
+  getById: async (id: string) => (await api.get(`/medRemind/${id}`)).data,
+  create: async (med: any) => (await api.post('/medRemind', med)).data,
+  update: async (id: string, med: any) => (await api.put(`/medRemind/${id}`, med)).data,
+  delete: async (id: string) => (await api.delete(`/medRemind/${id}`)).data,
+};
+
+export const doseHistoryAPI = {
+  getAll: async () => (await api.get('/dose-history')).data,
+  getById: async (id: string) => (await api.get(`/dose-history/${id}`)).data,
+  create: async (dose: any) => (await api.post('/dose-history', dose)).data,
+  update: async (id: string, dose: any) => (await api.put(`/dose-history/${id}`, dose)).data,
+  delete: async (id: string) => (await api.delete(`/dose-history/${id}`)).data,
 };
 
 export default api;

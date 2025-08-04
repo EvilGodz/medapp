@@ -1,12 +1,12 @@
+import { registerForPushNotificationsAsync, scheduleMedicationReminder } from "@/utils/notifications";
+import { DoseHistory, getMedReminds, getTodaysDoses, MedRemind, recordDose } from "@/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Animated, Dimensions, StyleSheet, Modal, AppState, Alert } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Animated, AppState, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
-import { DoseHistory, getMedications, getTodaysDoses, Medication, recordDose } from "@/utils/storage";
-import { registerForPushNotificationsAsync, scheduleMedicationReminder } from "@/utils/notifications";
-import { useFocusEffect } from "@react-navigation/native";
 
 const { width } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -14,8 +14,8 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const QUICK_ACTIONS = [
     {
         icon: "add-circle-outline" as const,
-        label: 'Add\nMedication',
-        route: '/medications/add' as const,
+        label: 'Add\nNotification',
+        route: '/notification/add' as const,
         color: '#2E7D32',
         gradient: ['#4CAF50', '#2E7D32'] as [string, string]
     },
@@ -112,16 +112,16 @@ function CircularProgress({
 
 export default function HomeScreen() {
     const router = useRouter();
-    const [todayMedications, setTodayMedications] = useState<Medication[]>([]);
+    const [todayMedications, setTodayMedications] = useState<MedRemind[]>([]);
     const [showNotifications, setShowNotifications] = useState(false);
     const [completedDoses, setCompletedDoses] = useState(0);
     const [doseHistory, setDoseHistory] = useState<DoseHistory[]>([]);
-    const [medications, setMedications] = useState<Medication[]>([]);
+    const [medications, setMedications] = useState<MedRemind[]>([]);
 
     const loadMedications = useCallback(async () => {
         try {
             const [allMedications, todayDoses] = await Promise.all([
-                getMedications(),
+                getMedReminds(),
                 getTodaysDoses(),
             ]);
 
@@ -157,7 +157,7 @@ export default function HomeScreen() {
                 return;
             }
 
-            const medifications = await getMedications();
+            const medifications = await getMedReminds();
             for (const medication of medications) {
                 if (medication.reminderEnabled) {
                     await scheduleMedicationReminder(medication);
@@ -193,18 +193,18 @@ export default function HomeScreen() {
         }, [loadMedications])
     );
 
-    const handleTakeDose = async (medications: Medication) => {
+    const handleTakeDose = async (medReminds: MedRemind) => {
         try {
-            await recordDose(medications.id, true, new Date().toISOString());
+            await recordDose(medReminds.id, true, new Date().toISOString());
             await loadMedications();
         } catch (error) {
             console.error("Error recording dose:", error);
             Alert.alert("Error", "Failed to record dose. Please try again.");
         }
     };
-    const isDoseTaken = (medicationsId: string) => {
+    const isDoseTaken = (medRemindsId: string) => {
         return doseHistory.some(
-            (dose) => dose.medicationId === medicationsId && dose.taken
+            (dose) => dose.medRemindId === medRemindsId && dose.taken
         );
     };
 
@@ -282,7 +282,7 @@ export default function HomeScreen() {
                     <View style={style.emptyState}>
                         <Ionicons name="medical-outline" size={48} color='#ccc' />
                         <Text style={style.emptyStateText}>ไม่มีรายการยาสำหรับวันนี้</Text>
-                        <Link href="/medications/add">
+                        <Link href="/notification/add">
                             <TouchableOpacity style={style.addMedicationButton}>
                                 <Text style={style.addMedicationButtonText}>เพิ่มยา</Text>
                             </TouchableOpacity>

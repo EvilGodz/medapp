@@ -15,7 +15,7 @@ export async function initDatabase(): Promise<void> {
   const db = await getDatabase();
   // Create tables if they don't exist
   await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS medications (
+    CREATE TABLE IF NOT EXISTS medReminds (
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
       dosage TEXT NOT NULL,
@@ -27,9 +27,19 @@ export async function initDatabase(): Promise<void> {
     );
     CREATE TABLE IF NOT EXISTS dose_history (
       id TEXT PRIMARY KEY NOT NULL,
-      medicationId TEXT NOT NULL,
+      medremindid TEXT NOT NULL,
       timestamp TEXT NOT NULL,
       taken INTEGER NOT NULL
     );
+  `);
+} 
+
+export async function DropDatabase(): Promise<void> {
+  const db = await getDatabase();
+  // Create tables if they don't exist
+  await db.execAsync(`
+    DROP TABLE medReminds;
+    DROP TABLE dose_history;
+    DROP TABLE medications;
   `);
 } 
