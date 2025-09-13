@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,8 +15,6 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-
-import { useRouter } from 'expo-router';
 import { AuthResponse, SignupFormData } from '../../types/types';
 
 export default function SignupScreen() {
@@ -356,6 +356,15 @@ export default function SignupScreen() {
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.formContainer}>
+          <View style={styles.header}>
+
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}>
+              <Ionicons name="chevron-back" size={28} color={'#1a8e2d'} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>เพิ่มการแจ้งเตือนใหม่</Text>
+          </View>
 
           <Text style={styles.title}>สร้างบัญชีของคุณ</Text>
 
@@ -644,6 +653,40 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  header: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  backIconContainer: {
+    padding: 4,
+    marginRight: 12
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827'
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
   },
 }
 )
