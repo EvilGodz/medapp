@@ -75,7 +75,7 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
         <TouchableOpacity onPress={handleGoBack} style={styles.backIconContainer}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>ตั้งค่าการแจ้งเตือน</Text>
       </View>
       <TouchableOpacity style={styles.card} onPress={openModal} activeOpacity={0.85}>
         <Text style={styles.title}>ตั้งค่าการแจ้งเตือน</Text>

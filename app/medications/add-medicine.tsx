@@ -9,11 +9,12 @@ import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpac
 
 export default function AddMedicineScreen() {
   const [medicine_name, setMedicineName] = useState('');
+  const [section_4_precautions, setSection4Precautions] = useState('');
   const [dosage, setDosage] = useState('');
   const [medicineCategory, setMedicineCategory] = useState<'เม็ด' | 'น้ำ'>('เม็ด');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState('');
   const router = useRouter();
 
   React.useEffect(() => {
@@ -25,7 +26,7 @@ export default function AddMedicineScreen() {
           setUserId(user.id);
         }
       } catch (e) {
-        setUserId(null);
+        Alert.alert('Error', 'ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
       }
     };
     fetchUserId();
@@ -39,7 +40,7 @@ export default function AddMedicineScreen() {
     setLoading(true);
     setError('');
     try {
-      await medicinesAPI.create({ medicine_name, section_3_1_dosage: dosage, medicine_category: medicineCategory, userId });
+      await medicinesAPI.create({ medicine_name, section_3_1_dosage: dosage, medicine_category: medicineCategory, section_4_precautions, userId });
       Alert.alert('สำเร็จ', 'เพิ่มข้อมูลยาเรียบร้อยแล้ว', [
         { text: 'ตกลง', onPress: () => router.back() }
       ]);
@@ -98,6 +99,16 @@ export default function AddMedicineScreen() {
                 <Picker.Item label="น้ำ" value="น้ำ" />
               </Picker>
             </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>หมายเหตุ</Text>
+            <TextInput
+              style={styles.input}
+              value={section_4_precautions}
+              onChangeText={setSection4Precautions}
+              placeholder="หมายเหตุ (เช่น ห้ามใช้ร่วมกับยาอื่น)"
+              placeholderTextColor="#aaa"
+            />
           </View>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <TouchableOpacity

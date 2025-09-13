@@ -163,9 +163,8 @@ export default function NotificationsManagerScreen() {
               <TouchableOpacity onPress={handleGoBack} style={styles.backIconContainer}>
                 <Ionicons name="arrow-back" size={24} color="#374151" />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Profile</Text>
+              <Text style={styles.headerTitle}>จัดการการแจ้งเตือน</Text>
             </View>
-      <Text style={styles.header}>จัดการการแจ้งเตือน</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#1a8e2d" style={{ marginTop: 40 }} />
       ) : notifications.length === 0 ? (
@@ -265,14 +264,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  header: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1a8e2d',
-    textAlign: 'center',
-    marginTop: 30,
-    marginBottom: 10,
   },
   card: {
     backgroundColor: 'white',

@@ -255,6 +255,9 @@ export default function MedicinesPage() {
                                             {item.section_3_1_dosage && (
                                                 <Text style={styles.resultDetail}>ขนาดยา: {item.section_3_1_dosage}</Text>
                                             )}
+                                            {item.section_4_precautions && (
+                                                <Text style={styles.resultDetail}>หมายเหตุ: {item.section_4_precautions}</Text>
+                                            )}
                                             {/* ปุ่มแก้ไข/ลบ เฉพาะยาที่ userId ไม่เป็น null */}
                                             {item.userid && item.userid !== 'null' && (
                                                 <View style={{ flexDirection: 'row', marginTop: 10 }}>

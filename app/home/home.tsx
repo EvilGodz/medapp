@@ -575,7 +575,7 @@ export default function HomeScreen() {
             <View style={style.bottomNav}>
                 {[
                     { href: '/home/home', icon: 'home', label: 'หน้าหลัก', color: '#1a8e2d', size: 24 },
-                    { href: '/notification/add', icon: 'add-circle-outline', label: 'เพิ่มแจ้งเตือน', color: '#2E7D32', size: 28 },
+                    { href: '/notification/add', icon: 'add-circle-outline', label: 'แจ้งเตือน', color: '#2E7D32', size: 28 },
                     { href: '/medications/med', icon: 'medkit-outline', label: 'ข้อมูลยา', color: '#2E7D32', size: 28 },
                     { href: '/calendar', icon: 'calendar-outline', label: 'ปฏิทิน', color: '#2E7D32', size: 24 },
                     { href: '/history', icon: 'time-outline', label: 'ประวัติ', color: '#2E7D32', size: 24 },

@@ -8,6 +8,7 @@ import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpac
 export default function EditMedicineScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [medicine_name, setMedicineName] = useState('');
+  const [section_4_precautions, setSection4Precautions] = useState('');
   const [dosage, setDosage] = useState('');
   const [medicineCategory, setMedicineCategory] = useState<'เม็ด' | 'น้ำ'>('เม็ด');
   const [error, setError] = useState('');
@@ -42,7 +43,7 @@ export default function EditMedicineScreen() {
     setLoading(true);
     setError('');
     try {
-      await medicinesAPI.update(id, { medicine_name, section_3_1_dosage: dosage, medicine_category: medicineCategory });
+      await medicinesAPI.update(id, { medicine_name, section_3_1_dosage: dosage, medicine_category: medicineCategory, section_4_precautions });
       Alert.alert('สำเร็จ', 'แก้ไขข้อมูลยาเรียบร้อยแล้ว', [
         { text: 'ตกลง', onPress: () => router.back() }
       ]);
