@@ -1,3 +1,4 @@
+import { addToProfileOutbox, processProfileOutbox } from '@/utils/outbox';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -40,7 +41,8 @@ function isEqual(a: any, b: any): boolean {
   return true;
 }
 
-const API_BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://192.168.1.89:3000';
+import { getApiBaseUrl } from '@/utils/env';
+const API_BASE_URL = getApiBaseUrl();
 
 interface User {
   id: number;
@@ -76,36 +78,53 @@ const MyProfileScreen = () => {
     loadUserData();
   }, []);
 
+
   const loadUserData = async () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('token');
-      
       if (!token) {
         Alert.alert('Error', 'Please login again');
         router.replace('/login/LoginScreen');
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      // Add 2s timeout to fetch
+      const fetchWithTimeout = (url: string, options: any, timeout = 2000) => {
+        return Promise.race([
+          fetch(url, options),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeout))
+        ]);
+      };
 
-      const data = await response.json();
-      
-      if (data.success && data.data?.user) {
-        const user = data.data.user;
+      let user = null;
+      let online = false;
+      try {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/profile`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await (response as Response).json();
+        if (data.success && data.data?.user) {
+          user = data.data.user;
+          await AsyncStorage.setItem('user', JSON.stringify(user));
+          online = true;
+        }
+      } catch (error) {
+        // offline fallback
+        const cached = await AsyncStorage.getItem('user');
+        if (cached) user = JSON.parse(cached);
+      }
+      if (user) {
         setUserData(user);
         setEditedData(user);
-        
-        if (user.birth_date) {
-          setSelectedDate(new Date(user.birth_date));
-        }
+        if (user.birth_date) setSelectedDate(new Date(user.birth_date));
       }
+  // If online, process outbox
+  if (online) await processProfileOutbox(token, API_BASE_URL);
     } catch (error) {
       console.error('Error loading profile:', error);
       Alert.alert('Error', 'Failed to load profile data');
@@ -118,7 +137,6 @@ const MyProfileScreen = () => {
     try {
       setSaving(true);
       const token = await AsyncStorage.getItem('token');
-      
       if (!token) {
         Alert.alert('Error', 'Please login again');
         return;
@@ -130,28 +148,43 @@ const MyProfileScreen = () => {
         birth_date: editedData.birth_date,
         weight: editedData.weight ? parseFloat(editedData.weight.toString()) : null,
         height: editedData.height ? parseFloat(editedData.height.toString()) : null,
-        // Note: phone and gender might need backend support
+        phone: editedData.phone || null,
+        gender: editedData.gender || null
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
+      // Try to save online with 2s timeout
+      const fetchWithTimeout = (url: string, options: any, timeout = 2000) => {
+        return Promise.race([
+          fetch(url, options),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeout))
+        ]);
+      };
+      let success = false;
+      try {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(updateData),
+        });
+        const data = await (response as Response).json();
+        if (data.success) {
+          success = true;
+        } else {
+          Alert.alert('Error', data.message || 'Failed to update profile');
+        }
+      } catch (error) {
+        // If offline or failed, queue in outbox
+        await addToProfileOutbox(updateData);
+        Alert.alert('Saved offline', 'Profile update will sync when online.');
+      }
+      // Always update local cache
+      setUserData(editedData);
+      await AsyncStorage.setItem('user', JSON.stringify(editedData));
+      if (success) {
         Alert.alert('Success', 'Profile updated successfully');
-        setUserData(editedData);
-        
-        // Update stored user data
-        await AsyncStorage.setItem('user', JSON.stringify(editedData));
-      } else {
-        Alert.alert('Error', data.message || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -232,9 +265,9 @@ const MyProfileScreen = () => {
                   </Text>
                 </View>
               )}
-              <TouchableOpacity style={styles.cameraButton}>
+              {/* <TouchableOpacity style={styles.cameraButton}>
                 <Ionicons name="camera" size={20} color="white" />
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
           </View>
 

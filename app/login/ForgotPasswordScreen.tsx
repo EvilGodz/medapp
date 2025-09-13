@@ -13,7 +13,8 @@ import {
   View
 } from 'react-native';
 
-const CALL_API = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://192.168.1.55:3000';
+import { getApiBaseUrl } from '@/utils/env';
+const CALL_API = getApiBaseUrl();
 
 const ForgotPasswordScreen: React.FC = () => {
   const router = useRouter();

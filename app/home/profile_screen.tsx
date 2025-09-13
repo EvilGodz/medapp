@@ -14,7 +14,8 @@ import {
   View
 } from 'react-native';
 
-const API_BASE_URL = 'http://192.168.1.89:3000';
+import { getApiBaseUrl } from '@/utils/env';
+const API_BASE_URL = getApiBaseUrl();
 
 // User Interface based on backend User model
 interface User {
@@ -42,12 +43,19 @@ const AuthService = {
   getProfile: async (): Promise<User> => {
     try {
       const token = await AsyncStorage.getItem('token');
-      
       if (!token) {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      // Add 2-second timeout to fetch
+      const fetchWithTimeout = (url: string, options: any, timeout = 2000) => {
+        return Promise.race([
+          fetch(url, options),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeout))
+        ]);
+      };
+
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/profile`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -55,22 +63,28 @@ const AuthService = {
         },
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
+      if (!(response as Response).ok) {
+        if ((response as Response).status === 401) {
           throw new Error('UNAUTHORIZED');
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${(response as Response).status}`);
       }
 
-      const data: ApiResponse = await response.json();
-      
+      const data: ApiResponse = await (response as Response).json();
       if (!data.success || !data.data?.user) {
         throw new Error('Invalid response format');
       }
 
+      // Save to cache for offline use
+      await AsyncStorage.setItem('user', JSON.stringify(data.data.user));
       return data.data.user;
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      // Try to load from cache if fetch fails
+      console.error('Error fetching profile, trying offline cache:', error);
+      const cachedUser = await AsyncStorage.getItem('user');
+      if (cachedUser) {
+        return JSON.parse(cachedUser);
+      }
       throw error;
     }
   },
@@ -79,6 +93,9 @@ const AuthService = {
     try {
       // Clear local storage
       await AsyncStorage.multiRemove(['token', 'user']);
+      // Clear SQLite data
+      const { clearAllData } = await import('@/utils/storage');
+      await clearAllData();
       return true;
     } catch (error) {
       console.error('Error during logout:', error);
@@ -107,17 +124,17 @@ const ProfileScreen = () => {
 
     } catch (error: any) {
       console.error('Error loading user data:', error);
-      
+
       if (error.message === 'UNAUTHORIZED') {
         // Token expired or invalid, redirect to login
         Alert.alert(
-          'Session Expired', 
+          'Session Expired',
           'Please login again',
           [{ text: 'OK', onPress: () => router.replace('/login/LoginScreen') }]
         );
         return;
       }
-      
+
       setError(error.message || 'Failed to load user data. Please try again.');
     } finally {
       setLoading(false);
@@ -153,7 +170,11 @@ const ProfileScreen = () => {
 
   const handleNotifications = () => {
     // Navigate to notifications (if implemented)
-    router.push('/notification/add');
+    router.push('/notification/notifications-manage');
+  };
+
+  const handleSettings = () => {
+    router.push('/home/NotificationSettingsMenu');
   };
 
   const handleGoBack = () => {
@@ -287,6 +308,17 @@ const ProfileScreen = () => {
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.menuItem, styles.menuItemBorder]}
+            onPress={handleSettings}
+          >
+            <View style={styles.menuIconContainer}>
+              <Ionicons name="settings-outline" size={20} color="#6B7280" />
+            </View>
+            <Text style={styles.menuText}>ตั้งค่าการแจ้งเตือน</Text>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
             <View style={[styles.menuIconContainer, { backgroundColor: '#FEE2E2' }]}>
               <Ionicons name="log-out-outline" size={20} color="#EF4444" />
@@ -305,23 +337,23 @@ const ProfileScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F9FAFB' 
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB'
   },
-  centerContent: { 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  loadingText: { 
-    marginTop: 16, 
-    fontSize: 16, 
-    color: '#6B7280' 
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280'
   },
-  errorContainer: { 
-    alignItems: 'center', 
-    paddingHorizontal: 32, 
-    maxWidth: 320 
+  errorContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    maxWidth: 320
   },
   errorIcon: {
     width: 64,
@@ -332,21 +364,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  errorTitle: { 
-    fontSize: 20, 
-    fontWeight: '600', 
-    color: '#111827', 
-    marginBottom: 8 
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8
   },
-  errorMessage: { 
-    fontSize: 14, 
-    color: '#EF4444', 
-    textAlign: 'center', 
-    marginBottom: 24 
+  errorMessage: {
+    fontSize: 14,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 24
   },
-  errorActions: { 
-    width: '100%', 
-    gap: 12 
+  errorActions: {
+    width: '100%',
+    gap: 12
   },
   retryButton: {
     backgroundColor: '#1a8e2d',
@@ -355,10 +387,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  retryButtonText: { 
-    color: 'white', 
-    fontSize: 16, 
-    fontWeight: '500' 
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500'
   },
   backButton: {
     backgroundColor: '#6B7280',
@@ -367,10 +399,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  backButtonText: { 
-    color: 'white', 
-    fontSize: 16, 
-    fontWeight: '500' 
+  backButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500'
   },
   header: {
     backgroundColor: 'white',
@@ -384,14 +416,14 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  backIconContainer: { 
-    padding: 4, 
-    marginRight: 12 
+  backIconContainer: {
+    padding: 4,
+    marginRight: 12
   },
-  headerTitle: { 
-    fontSize: 18, 
-    fontWeight: '600', 
-    color: '#111827' 
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827'
   },
   profileCard: {
     backgroundColor: 'white',
@@ -405,9 +437,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  profileRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center' 
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   avatar: {
     width: 64,
@@ -418,23 +450,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  avatarText: { 
-    color: 'white', 
-    fontSize: 20, 
-    fontWeight: '600' 
+  avatarText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: '600'
   },
-  profileInfo: { 
-    flex: 1 
+  profileInfo: {
+    flex: 1
   },
-  fullName: { 
-    fontSize: 20, 
-    fontWeight: '600', 
-    color: '#111827' 
+  fullName: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827'
   },
-  email: { 
-    fontSize: 14, 
-    color: '#6B7280', 
-    marginTop: 4 
+  email: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4
   },
   verificationContainer: {
     flexDirection: 'row',
@@ -446,10 +478,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 4,
   },
-  userId: { 
-    fontSize: 12, 
-    color: '#9CA3AF', 
-    marginTop: 2 
+  userId: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2
   },
   joinDate: {
     fontSize: 12,
@@ -502,16 +534,16 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  menuItem: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 24, 
-    paddingVertical: 16 
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16
   },
-  menuItemBorder: { 
-    borderTopWidth: 1, 
-    borderBottomWidth: 1, 
-    borderColor: '#F3F4F6' 
+  menuItemBorder: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#F3F4F6'
   },
   menuIconContainer: {
     width: 32,
@@ -522,17 +554,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  menuText: { 
-    flex: 1, 
-    fontSize: 16, 
-    fontWeight: '500', 
-    color: '#111827' 
+  menuText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827'
   },
-  logoutText: { 
-    flex: 1, 
-    fontSize: 16, 
-    fontWeight: '500', 
-    color: '#EF4444' 
+  logoutText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#EF4444'
   },
   apiInfo: {
     marginHorizontal: 16,
@@ -544,11 +576,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  apiInfoText: { 
-    fontSize: 12, 
-    color: '#1E40AF', 
-    textAlign: 'center', 
-    fontWeight: '500' 
+  apiInfoText: {
+    fontSize: 12,
+    color: '#1E40AF',
+    textAlign: 'center',
+    fontWeight: '500'
   },
 });
 

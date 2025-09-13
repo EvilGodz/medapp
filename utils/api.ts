@@ -1,18 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { InternalAxiosRequestConfig } from 'axios';
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { Platform } from 'react-native';
 import { ApiResponse, AuthResponse, User } from '../types/types';
-
-const getApiBaseUrl = () => {
-  if (__DEV__) {
-    if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:3000';
-    }
-    return 'http://192.168.1.89:3000';
-  }
-
-};
+import { getApiBaseUrl } from './env';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -150,6 +140,8 @@ export const medRemindAPI = {
   create: async (med: any) => (await api.post('/medRemind', med)).data,
   update: async (id: string, med: any) => (await api.put(`/medRemind/${id}`, med)).data,
   delete: async (id: string) => (await api.delete(`/medRemind/${id}`)).data,
+  toggle: async (id: string, reminderEnabled: number) =>
+    (await api.patch(`/medRemind/${id}/toggle`, { reminderEnabled })).data,
 };
 
 export const doseHistoryAPI = {

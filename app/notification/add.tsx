@@ -1,5 +1,6 @@
 import { scheduleMedicationReminder } from "@/utils/notifications";
-import { addMedRemind } from "@/utils/storage";
+import { getApiBaseUrl } from "@/utils/env";
+import { addMedRemind, addMedRemindToApi } from "@/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
@@ -87,6 +88,8 @@ export default function addNotificationScreen() {
     // สำหรับ dosage unit & conversion
     const [dosageType, setDosageType] = useState<'เม็ด' | 'ยาน้ำ'>('เม็ด');
     const [dosageUnit, setDosageUnit] = useState<'ml' | 'ช้อนชา' | 'ช้อนโต๊ะ'>('ml');
+    // เพิ่ม state สำหรับเม็ด/ครึ่งเม็ด
+    const [tabletType, setTabletType] = useState<'เม็ด' | 'ครึ่งเม็ด'>('เม็ด');
 
     // แปลงค่าระหว่างหน่วย
     const convertDosage = (value: string, from: 'ml' | 'ช้อนชา' | 'ช้อนโต๊ะ', to: 'ml' | 'ช้อนชา' | 'ช้อนโต๊ะ') => {
@@ -102,7 +105,7 @@ export default function addNotificationScreen() {
     };
 
     const router = useRouter()
-    const CALL_API = 'http://192.168.1.89:3000';
+    const CALL_API = getApiBaseUrl();
     const renderFrequencyOptions = () => {
         return (
             <View style={styles.optionsGrid}>
@@ -180,20 +183,9 @@ export default function addNotificationScreen() {
                 ))}
                 {/* If custom selected, show input */}
                 {selectedDuration === 'กำหนดเอง' && (
-                    <View style={{ width: '100%', marginTop: 10, alignItems: 'center' }}>
+                    <View style={styles.customInputBox}>
                         <TextInput
-                            style={{
-                                borderWidth: 1,
-                                borderColor: '#1a8e2d',
-                                borderRadius: 12,
-                                padding: 10,
-                                width: 120,
-                                textAlign: 'center',
-                                fontSize: 18,
-                                marginBottom: 4,
-                                color: '#1a8e2d',
-                                backgroundColor: '#f8f9fa',
-                            }}
+                            style={styles.customInput}
                             keyboardType="numeric"
                             placeholder="จำนวนวัน"
                             value={customDuration}
@@ -203,7 +195,7 @@ export default function addNotificationScreen() {
                             }}
                             maxLength={3}
                         />
-                        <Text style={{ color: '#888', fontSize: 13 }}>กรอกจำนวนวัน</Text>
+                        <Text style={styles.customInputHint}>กรอกจำนวนวัน</Text>
                     </View>
                 )}
             </View>
@@ -235,20 +227,9 @@ export default function addNotificationScreen() {
                     </TouchableOpacity>
                 ))}
                 {selectedDayFrequency === 'กำหนดเอง' && (
-                    <View style={{ width: '100%', marginTop: 10, alignItems: 'center' }}>
+                    <View style={styles.customInputBox}>
                         <TextInput
-                            style={{
-                                borderWidth: 1,
-                                borderColor: '#1a8e2d',
-                                borderRadius: 12,
-                                padding: 10,
-                                width: 120,
-                                textAlign: 'center',
-                                fontSize: 18,
-                                marginBottom: 4,
-                                color: '#1a8e2d',
-                                backgroundColor: '#f8f9fa',
-                            }}
+                            style={styles.customInput}
                             keyboardType="numeric"
                             placeholder="จำนวนวัน"
                             value={customDayFrequency}
@@ -263,7 +244,7 @@ export default function addNotificationScreen() {
                             }}
                             maxLength={3}
                         />
-                        <Text style={{ color: '#888', fontSize: 13 }}>ทานยาทุกๆ กี่วัน</Text>
+                        <Text style={styles.customInputHint}>ทานยาทุกๆ กี่วัน</Text>
                     </View>
                 )}
             </View>
@@ -304,10 +285,9 @@ export default function addNotificationScreen() {
     };
     const renderMealTiming = () => {
         return (
-            <View style={{ marginTop: 16 }}>
-                <Text style={{ fontWeight: '600', color: '#333', marginBottom: 8 }}>เวลากับมื้ออาหาร</Text>
+            <View>
                 <View style={styles.optionsGrid}>
-                    {[{ label: 'ก่อนอาหาร', value: 'ก่อนอาหาร' }, { label: 'หลังอาหาร', value: 'หลังอาหาร' }, { label: 'ไม่ระบุ', value: 'ไม่ระบุ' }].map((opt) => (
+                    {[{ label: 'ก่อนอาหาร', value: 'ก่อนอาหาร' }, { label: 'หลังอาหาร', value: 'หลังอาหาร' }, { label: 'ระหว่างอาหาร', value: 'ระหว่างอาหาร' }, { label: 'หลังอาหารทันที', value: 'หลังอาหารทันที' }, { label: 'ไม่ระบุ', value: 'ไม่ระบุ' }].map((opt) => (
                         <TouchableOpacity
                             key={opt.value}
                             style={[
@@ -328,21 +308,21 @@ export default function addNotificationScreen() {
                     ))}
                 </View>
                 {errors.mealTiming ? (
-                    <Text style={{ color: 'red', marginTop: 6 }}>{errors.mealTiming}</Text>
+                    <Text style={styles.mealTimingError}>{errors.mealTiming}</Text>
                 ) : null}
             </View>
         );
     };
 
     const handleSave = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         try {
             if (!validateForm()) {
+                setIsSubmitting(false);
                 Alert.alert("Error", "กรุณากรอกข้อมูลให้ครบถ้วน");
                 return;
             }
-
-            if (isSubmitting) return;
-            setIsSubmitting(true);
 
             //สี
             const colors = ["#4CAF50", "#2196F3", "#FF9800", "#E91E63", "#9C27B0"];
@@ -356,7 +336,7 @@ export default function addNotificationScreen() {
             if (dosageType === 'ยาน้ำ' && form.dosage) {
                 dosageWithUnit = `${form.dosage} ${dosageUnit}`;
             } else if (dosageType === 'เม็ด' && form.dosage) {
-                dosageWithUnit = `${form.dosage} เม็ด`;
+                dosageWithUnit = `${form.dosage} ${tabletType}`;
             }
 
             //สร้าง notification ตาม dayFrequency
@@ -372,14 +352,53 @@ export default function addNotificationScreen() {
                 dayFrequency: finalDayFrequency,
             };
 
-            await addMedRemind(notificationData);
-            if (notificationData.reminderEnabled) {
-                await scheduleMedicationReminder(notificationData);
+            // Always update local storage for offline UX
+            try {
+                await addMedRemind(notificationData);
+            } catch (err) {
+                setIsSubmitting(false);
+                Alert.alert(
+                    "Error",
+                    "บันทึกข้อมูลในเครื่องไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+                    [{ text: "ตกลง" }],
+                    { cancelable: false },
+                );
+                return;
             }
 
+            // Try to sync to backend (API), queue to outbox if fails
+            let apiSynced = false;
+
+            try {
+                // 3s timeout for API sync
+                const result = await Promise.race([
+                    addMedRemindToApi(notificationData),
+                ]);
+                apiSynced = typeof result === 'boolean' ? result : false;
+            } catch (e) {
+                // If API sync or outbox fails, treat as offline
+                apiSynced = false;
+            }
+
+            // Schedule notification (local only, do not queue in outbox)
+            let scheduled = false;
+            try {
+                if (notificationData.reminderEnabled) {
+                    await Promise.race([
+                        scheduleMedicationReminder(notificationData),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout scheduling notification')), 3000))
+                    ]);
+                }
+                scheduled = true;
+            } catch (e) {
+                // Notification scheduling failed, but do not queue in outbox
+                scheduled = false;
+            }
+
+            setIsSubmitting(false); // ปิด loading ก่อน alert
             Alert.alert(
-                "สำเร็จ",
-                "เพิ่มการแจ้งเตือนเสร็จสิ้น",
+                apiSynced ? "สำเร็จ" : "บันทึกแบบออฟไลน์",
+                apiSynced ? "เพิ่มการแจ้งเตือนเสร็จสิ้น" : "เพิ่มการแจ้งเตือนแบบออฟไลน์ จะซิงค์เมื่อออนไลน์",
                 [
                     {
                         text: "ตกลง",
@@ -389,6 +408,7 @@ export default function addNotificationScreen() {
                 { cancelable: false }
             );
         } catch (error) {
+            setIsSubmitting(false);
             console.error("Save error:", error);
             Alert.alert(
                 "Error",
@@ -396,9 +416,6 @@ export default function addNotificationScreen() {
                 [{ text: "ตกลง" }],
                 { cancelable: false },
             );
-
-        } finally {
-            setIsSubmitting(false);
         }
     }
 
@@ -427,7 +444,7 @@ export default function addNotificationScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.section}>
-                        <View style={[{ position: 'relative' }]}>
+                        <View style={styles.relative}>
                             <TextInput
                                 style={[styles.mainInput, styles.inputContainer, errors.name && styles.inputError]}
                                 placeholder="ชื่อยา"
@@ -455,37 +472,27 @@ export default function addNotificationScreen() {
                                 <Text style={styles.errorText}>{errors.name}</Text>
                             )}
                             {/* เลือกประเภทขนาดยา */}
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 4 }}>
+                            <View style={styles.typeRow}>
                                 <Text style={{ marginRight: 10, fontSize: 16 }}>ประเภท:</Text>
                                 <TouchableOpacity
-                                    style={{
-                                        backgroundColor: dosageType === 'เม็ด' ? '#1a8e2d' : '#e0e0e0',
-                                        borderRadius: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 6,
-                                        marginRight: 8,
-                                    }}
+                                    style={[styles.typeButton, dosageType === 'เม็ด' ? styles.typeButtonActive : styles.typeButtonInactive]}
                                     onPress={() => setDosageType('เม็ด')}
                                 >
                                     <Text style={{ color: dosageType === 'เม็ด' ? 'white' : '#333' }}>เม็ด/แคปซูล</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={{
-                                        backgroundColor: dosageType === 'ยาน้ำ' ? '#1a8e2d' : '#e0e0e0',
-                                        borderRadius: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 6,
-                                    }}
+                                    style={[styles.typeButton, dosageType === 'ยาน้ำ' ? styles.typeButtonActive : styles.typeButtonInactive, { marginRight: 0 }]}
                                     onPress={() => setDosageType('ยาน้ำ')}
                                 >
                                     <Text style={{ color: dosageType === 'ยาน้ำ' ? 'white' : '#333' }}>ยาน้ำ</Text>
                                 </TouchableOpacity>
                             </View>
+                            
                             {/* ช่อง dosage + หน่วย */}
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={styles.dosageRow}>
                                 <TextInput
                                     style={[styles.mainInput, styles.inputContainer, errors.dosage && styles.inputError, { flex: 1 }]}
-                                    placeholder={dosageType === 'ยาน้ำ' ? `ขนาดยา (${dosageUnit})` : 'ขนาดยา (เช่น 500mg)'}
+                                    placeholder={dosageType === 'ยาน้ำ' ? `ขนาดยา (${dosageUnit})` : 'ขนาดยา (เช่น 1 เม็ด)'}
                                     placeholderTextColor={'#999'}
                                     value={form.dosage}
                                     keyboardType={dosageType === 'ยาน้ำ' ? 'numeric' : 'default'}
@@ -500,58 +507,51 @@ export default function addNotificationScreen() {
                                 {dosageType === 'ยาน้ำ' && (
                                     <>
                                         <TouchableOpacity
-                                            style={{
-                                                backgroundColor: dosageUnit === 'ml' ? '#1a8e2d' : '#e0e0e0',
-                                                borderRadius: 8,
-                                                paddingHorizontal: 10,
-                                                paddingVertical: 6,
-                                                marginLeft: 6,
-                                            }}
+                                            style={[styles.dosageUnitButton, dosageUnit === 'ml' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ml')}
                                         >
                                             <Text style={{ color: dosageUnit === 'ml' ? 'white' : '#333' }}>ml</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={{
-                                                backgroundColor: dosageUnit === 'ช้อนชา' ? '#1a8e2d' : '#e0e0e0',
-                                                borderRadius: 8,
-                                                paddingHorizontal: 10,
-                                                paddingVertical: 6,
-                                                marginLeft: 6,
-                                            }}
+                                            style={[styles.dosageUnitButton, dosageUnit === 'ช้อนชา' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ช้อนชา')}
                                         >
                                             <Text style={{ color: dosageUnit === 'ช้อนชา' ? 'white' : '#333' }}>ช้อนชา</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={{
-                                                backgroundColor: dosageUnit === 'ช้อนโต๊ะ' ? '#1a8e2d' : '#e0e0e0',
-                                                borderRadius: 8,
-                                                paddingHorizontal: 10,
-                                                paddingVertical: 6,
-                                                marginLeft: 6,
-                                            }}
+                                            style={[styles.dosageUnitButton, dosageUnit === 'ช้อนโต๊ะ' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ช้อนโต๊ะ')}
                                         >
                                             <Text style={{ color: dosageUnit === 'ช้อนโต๊ะ' ? 'white' : '#333' }}>ช้อนโต๊ะ</Text>
                                         </TouchableOpacity>
                                     </>
                                 )}
+                                {/* ถ้าเลือกเม็ด/แคปซูล ให้เลือก เม็ด หรือ ครึ่งเม็ด */}
+                                {dosageType === 'เม็ด' && (
+                                <View style={styles.dosageUnitRow}>
+                                    <TouchableOpacity
+                                        style={[styles.dosageUnitButton, tabletType === 'เม็ด' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
+                                        onPress={() => setTabletType('เม็ด')}
+                                    >
+                                        <Text style={{ color: tabletType === 'เม็ด' ? 'white' : '#333' }}>เม็ด</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.dosageUnitButton, tabletType === 'ครึ่งเม็ด' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
+                                        onPress={() => setTabletType('ครึ่งเม็ด')}
+                                    >
+                                        <Text style={{ color: tabletType === 'ครึ่งเม็ด' ? 'white' : '#333' }}>ครึ่งเม็ด</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                )}
                             </View>
                             {/* ปุ่มแปลงหน่วย เฉพาะยาน้ำ */}
                             {dosageType === 'ยาน้ำ' && form.dosage && (
-                                <View style={{ flexDirection: 'row', marginTop: 8, alignItems: 'center' }}>
-                                    <Text style={{ marginRight: 8, color: '#1a8e2d', fontWeight: '600' }}>แปลงหน่วย:</Text>
+                                <View style={styles.convertRow}>
+                                    <Text style={styles.convertLabel}>แปลงหน่วย:</Text>
                                     {["ml", "ช้อนชา", "ช้อนโต๊ะ"].filter(u => u !== dosageUnit).map((unit) => (
                                         <TouchableOpacity
                                             key={unit}
-                                            style={{
-                                                backgroundColor: '#e0e0e0',
-                                                borderRadius: 8,
-                                                paddingHorizontal: 10,
-                                                paddingVertical: 6,
-                                                marginRight: 6,
-                                            }}
+                                            style={styles.convertButton}
                                             onPress={() => {
                                                 // แปลงค่าและเปลี่ยนหน่วย
                                                 const newValue = convertDosage(form.dosage, dosageUnit, unit as any);
@@ -570,18 +570,7 @@ export default function addNotificationScreen() {
                                 </Text>
                             )}
                             {suggestions.length > 0 && (
-                                <View style={{
-                                    backgroundColor: 'white',
-                                    borderRadius: 8,
-                                    elevation: 2,
-                                    position: 'absolute',
-                                    top: 60,
-                                    left: 0,
-                                    right: 0,
-                                    zIndex: 20,
-                                    borderWidth: 1,
-                                    borderColor: '#e0e0e0'
-                                }}>
+                                <View style={styles.suggestionBox}>
                                     {suggestions.map((med) => (
                                         <TouchableOpacity
                                             key={med.id}
@@ -590,7 +579,7 @@ export default function addNotificationScreen() {
                                                 setSelectedMedicine(med);
                                                 setSuggestions([]);
                                             }}
-                                            style={{ padding: 10 }}
+                                            style={styles.suggestionItem}
                                         >
                                             <Text>{med.medicine_name}</Text>
                                         </TouchableOpacity>
@@ -609,6 +598,26 @@ export default function addNotificationScreen() {
                         )}
                         {renderFrequencyOptions()}
 
+                        {form.frequency && form.frequency !== 'ตามต้องการ' && (
+                            <View style={styles.timesContainer}>
+                                <Text style={styles.timesTitle}>เวลาทานยา</Text>
+                                {form.times.map((time, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={styles.timeButton}
+                                        onPress={() => {
+                                            setShowTimePicker(index);
+                                        }}
+                                    >
+                                        <View style={styles.timeIconContainer}>
+                                            <Ionicons name="time-outline" size={20} color={'#1a8e2d'} />
+                                        </View>
+                                        <Text style={styles.timeButtonText}>{time}</Text>
+                                        <Ionicons name="chevron-forward" size={20} color={'#666'} />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
                         <Text style={styles.sectionTitle}>ระยะเวลา</Text>
                         {errors.duration && (
                             <Text style={styles.errorText}>{errors.duration}</Text>
@@ -642,26 +651,7 @@ export default function addNotificationScreen() {
                             />
                         )}
 
-                        {form.frequency && form.frequency !== 'ตามต้องการ' && (
-                            <View style={styles.timesContainer}>
-                                <Text style={styles.timesTitle}>เวลาทานยา</Text>
-                                {form.times.map((time, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        style={styles.timeButton}
-                                        onPress={() => {
-                                            setShowTimePicker(index);
-                                        }}
-                                    >
-                                        <View style={styles.timeIconContainer}>
-                                            <Ionicons name="time-outline" size={20} color={'#1a8e2d'} />
-                                        </View>
-                                        <Text style={styles.timeButtonText}>{time}</Text>
-                                        <Ionicons name="chevron-forward" size={20} color={'#666'} />
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
+                        
 
                         {typeof showTimePicker === 'number' && (
                             <DateTimePicker
@@ -1066,5 +1056,113 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
-
+    typeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 10,
+        marginBottom: 4,
+    },
+    typeButton: {
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        marginRight: 8,
+    },
+    typeButtonActive: {
+        backgroundColor: '#1a8e2d',
+    },
+    typeButtonInactive: {
+        backgroundColor: '#e0e0e0',
+    },
+    dosageUnitRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    dosageUnitButton: {
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        marginLeft: 6,
+    },
+    dosageUnitButtonActive: { backgroundColor: '#1a8e2d' },
+    dosageUnitButtonInactive: { backgroundColor: '#e0e0e0' },
+    tabletTypeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    tabletTypeButton: {
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        marginRight: 8,
+    },
+    tabletTypeButtonActive: {
+        backgroundColor: '#1a8e2d',
+    },
+    tabletTypeButtonInactive: {
+        backgroundColor: '#e0e0e0',
+    },
+    convertRow: {
+        flexDirection: 'row',
+        marginTop: 8,
+        alignItems: 'center' 
+    },
+    convertLabel: {
+        marginRight: 8, 
+        color: '#1a8e2d', 
+        fontWeight: '600' 
+    },
+    convertButton: {
+        backgroundColor: '#e0e0e0',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        marginRight: 6,
+    },
+    suggestionBox: {
+        backgroundColor: 'white',
+        borderRadius: 8,
+        elevation: 2,
+        position: 'absolute',
+        top: 60,
+        left: 0,
+        right: 0,
+        zIndex: 20,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    suggestionItem: {
+        padding: 10 
+    },
+    customInputBox: {
+        width: '100%',
+        marginTop: 10,
+        alignItems: 'center',
+    },
+    customInput: {
+        borderWidth: 1,
+        borderColor: '#1a8e2d',
+        borderRadius: 12,
+        padding: 10,
+        width: 120,
+        textAlign: 'center',
+        fontSize: 18,
+        marginBottom: 4,
+        color: '#1a8e2d',
+        backgroundColor: '#f8f9fa',
+    },
+    customInputHint: { 
+        color: '#888', fontSize: 13 
+    },
+    mealTimingLabel: {
+        fontWeight: '600', color: '#333',
+        marginBottom: 8 
+    },
+    mealTimingError: {
+        color: 'red', marginTop: 6 
+    },
+    relative: { position: 'relative' },
+    dosageRow: { flexDirection: 'row', alignItems: 'center' },
 })

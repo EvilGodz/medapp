@@ -1,4 +1,5 @@
 import { registerForPushNotificationsAsync, scheduleMedicationReminder } from "@/utils/notifications";
+import { addToDoseOutbox } from '@/utils/outbox';
 import { DoseHistory, ensureMissedDosesForToday, getMedReminds, getTodaysDoses, MedRemind, recordDose } from "@/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -211,8 +212,21 @@ export default function HomeScreen() {
 
     const handleTakeDose = async (medRemind: MedRemind, time?: string) => {
         try {
-            await recordDose(medRemind.id, true, new Date().toISOString(), time); // ต้องบันทึก time ด้วย
-            await loadMedications(); // โหลดข้อมูลใหม่หลังบันทึกสำเร็จ
+            try {
+                await Promise.race([
+                    recordDose(medRemind.id, true, new Date().toISOString(), time),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout recording dose')), 1000))
+                ]);
+            } catch (error) {
+                // If offline or failed, queue in outbox
+                await addToDoseOutbox({
+                    medRemindId: medRemind.id,
+                    taken: true,
+                    timestamp: new Date().toISOString(),
+                    time,
+                });
+            }
+            await loadMedications();
         } catch (error) {
             Alert.alert("Error", "Failed to record dose. Please try again.");
         }
@@ -255,6 +269,22 @@ export default function HomeScreen() {
         0
     );
     const progress = totalDoses > 0 ? Math.min(completedDoses / totalDoses, 1) : 0;
+
+    function getDoseStatsForMed(med: MedRemind, doseHistory: DoseHistory[]) {
+        const taken = doseHistory.filter(
+            (dose) => dose.medRemindId === med.id && dose.taken
+        ).length;
+        let durationDays = 0;
+        if (/(ongoing|ต่อเนื่อง)/i.test(med.duration)) {
+            durationDays = 0;
+        } else {
+            const match = med.duration.match(/(\d+)/);
+            if (match) durationDays = parseInt(match[1], 10);
+        }
+        const timesPerDay = Array.isArray(med.times) && med.times.length > 0 ? med.times.length : 1;
+        const total = durationDays > 0 ? durationDays * timesPerDay : 0;
+        return { taken, total };
+    }
 
     return (
         <View style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
@@ -339,14 +369,14 @@ export default function HomeScreen() {
                             return (
                                 <>
                                     {periodOrder.filter(p => byPeriod[p]?.length).map((period) => {
-                                        const mealGroups: Record<string, Entry[]> = { 'ก่อนอาหาร': [], 'หลังอาหาร': [], 'ไม่ระบุ': [], '': [] };
+                                        const mealGroups: Record<string, Entry[]> = { 'ก่อนอาหาร': [], 'หลังอาหาร': [], 'ระหว่างอาหาร': [], 'หลังอาหารทันที': [], 'ไม่ระบุ': [], '': [] };
                                         for (const e of byPeriod[period]) {
                                             const meal = ((e.med as any).mealTiming || '') as string;
                                             if (!mealGroups[meal]) mealGroups[meal] = [];
                                             mealGroups[meal].push(e);
                                         }
                                         // compute total pending in this period
-                                        const totalPendingInPeriod = ['ก่อนอาหาร','หลังอาหาร','ไม่ระบุ',''].reduce((acc, meal) => {
+                                        const totalPendingInPeriod = ['ก่อนอาหาร','หลังอาหาร','ระหว่างอาหาร','หลังอาหารทันที','ไม่ระบุ',''].reduce((acc, meal) => {
                                             const list = (mealGroups[meal] || []).slice().sort((a,b) => (a.time||'').localeCompare(b.time||''));
                                             const pending = list.filter(e => !isTimeDoseTaken(e.med.id, e.time) && !isTimeDoseMissed(e.med, e.time));
                                             return acc + pending.length;
@@ -358,7 +388,7 @@ export default function HomeScreen() {
                                                     <Ionicons name="time-outline" size={16} color="#1a8e2d" />
                                                     <Text style={{ marginLeft: 6, fontWeight: '700', color: '#1a1a1a' }}>{period}</Text>
                                                 </View>
-                                                {['ก่อนอาหาร','หลังอาหาร','ไม่ระบุ',''].map((meal) => {
+                                                {['ก่อนอาหาร','หลังอาหาร','ระหว่างอาหาร','หลังอาหารทันที','ไม่ระบุ',''].map((meal) => {
                                                     const list = mealGroups[meal].slice().sort((a,b) => (a.time||'').localeCompare(b.time||''));
                                                     const pending = list.filter(e => !isTimeDoseTaken(e.med.id, e.time) && !isTimeDoseMissed(e.med, e.time));
                                                     if (pending.length === 0) return null;
@@ -523,11 +553,16 @@ export default function HomeScreen() {
                                         </View>
                                         <View style={style.notificationContent}>
                                             <Text style={style.notificationTitle}>{medication.name}</Text>
-                                            <Text style={style.notificationMessage}>{medication.dosage}</Text>
+                                            <Text style={style.notificationMessage}>
+                                                {medication.dosage}
+                                            </Text>
                                             <Text style={style.notificationTime}>
                                                 {Array.isArray(medication.times)
                                                     ? medication.times.join(', ')
                                                     : medication.times}
+                                            </Text>
+                                            <Text style={style.notificationMessage}>
+                                                ทานแล้ว {getDoseStatsForMed(medication, doseHistory).taken} / {getDoseStatsForMed(medication, doseHistory).total} ครั้ง
                                             </Text>
                                         </View>
                                     </View>

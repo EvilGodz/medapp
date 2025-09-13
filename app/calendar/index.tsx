@@ -291,6 +291,7 @@ export default function CalendarScreen() {
                       <Text style={styles.medicationName}>{medication.name}</Text>
                       <Text style={styles.medicationDosage}>{medication.dosage}</Text>
                       <Text style={styles.medicationTime}>{time || '-'}</Text>
+                      <Text style={[styles.medicationDosage, { color: '#888', fontSize: 13 }]}>ทานแล้ว {getDoseStatsForMed(medication, doseHistory).taken} / {getDoseStatsForMed(medication, doseHistory).total} ครั้ง</Text>
                     </View>
                     {taken ? (
                       <View style={styles.takenBadge}>
@@ -308,7 +309,24 @@ export default function CalendarScreen() {
                         <TouchableOpacity
                           style={[styles.takeDoseButton, { backgroundColor: medication.color }]}
                           onPress={async () => {
-                            await recordDose(medication.id, true, new Date().toISOString(), time);
+                            try {
+                              await Promise.race([
+                                recordDose(medication.id, true, new Date().toISOString(), time),
+                                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout recording dose')), 1000))
+                              ]);
+                            } catch (error) {
+                              // If offline or failed, queue in outbox
+                              if (typeof require !== 'undefined') {
+                                // dynamic import to avoid circular deps
+                                const { addToDoseOutbox } = require('../../utils/outbox');
+                                await addToDoseOutbox({
+                                  medRemindId: medication.id,
+                                  taken: true,
+                                  timestamp: new Date().toISOString(),
+                                  time,
+                                });
+                              }
+                            }
                             loadData();
                           }}
                         >
@@ -330,6 +348,22 @@ export default function CalendarScreen() {
       </>
     );
   };
+
+  function getDoseStatsForMed(med: MedRemind, history: DoseHistory[]) {
+    const taken = history.filter(
+      (dose) => dose.medRemindId === med.id && dose.taken
+    ).length;
+    let durationDays = 0;
+    if (/(ongoing|ต่อเนื่อง)/i.test(med.duration)) {
+      durationDays = 0;
+    } else {
+      const match = med.duration.match(/(\d+)/);
+      if (match) durationDays = parseInt(match[1], 10);
+    }
+    const timesPerDay = Array.isArray(med.times) && med.times.length > 0 ? med.times.length : 1;
+    const total = durationDays > 0 ? durationDays * timesPerDay : 0;
+    return { taken, total };
+  }
 
   return (
     <View style={styles.container}>

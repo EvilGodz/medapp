@@ -1,14 +1,14 @@
+import { getApiBaseUrl } from '@/utils/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 interface AuthResponse {
@@ -20,7 +20,7 @@ interface AuthResponse {
   };
 }
 
-const CALL_API = Constants.expoConfig?.extra?.CALL_API || process.env.CALL_API || 'http://localhost:3000';
+const CALL_API = getApiBaseUrl();
 
 const EmailVerifiedScreen: React.FC = () => {
   const router = useRouter();

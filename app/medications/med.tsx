@@ -1,12 +1,11 @@
-
 import { Medicine } from '@/types/medicine';
 import { medicinesAPI } from '@/utils/medicinesApi';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 
 const { width } = Dimensions.get('window');
@@ -20,6 +19,7 @@ export default function MedicinesPage() {
     const [suggestions, setSuggestions] = useState<Medicine[]>([]);
     const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [showUserOnly, setShowUserOnly] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -40,6 +40,13 @@ export default function MedicinesPage() {
     useEffect(() => {
         loadAllMedicines();
     }, [currentUserId]);
+
+    // รีโหลดรายการยาเมื่อกลับมาหน้านี้ (หลังเพิ่ม/แก้ไข)
+    useFocusEffect(
+        React.useCallback(() => {
+            loadAllMedicines();
+        }, [currentUserId])
+    );
 
     const loadAllMedicines = async () => {
         if (!currentUserId) return;
@@ -107,6 +114,41 @@ export default function MedicinesPage() {
         }
     };
 
+    // เพิ่มฟังก์ชันสำหรับเพิ่มยาใหม่
+    const handleAddMedicine = async () => {
+        router.push('/medications/add-medicine');
+    };
+
+    // ฟังก์ชันลบยา
+    const handleDeleteMedicine = async (id: string, userId: string | null | undefined) => {
+        if (!userId || userId === 'null') {
+            Alert.alert('ไม่สามารถลบ', 'ไม่สามารถลบยาหลักของระบบได้');
+            return;
+        }
+        Alert.alert('ยืนยันการลบ', 'คุณต้องการลบยานี้หรือไม่?', [
+            { text: 'ยกเลิก', style: 'cancel' },
+            {
+                text: 'ลบ', style: 'destructive', onPress: async () => {
+                    try {
+                        await medicinesAPI.delete(id);
+                        loadAllMedicines();
+                    } catch (e) {
+                        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบข้อมูลยาได้');
+                    }
+                }
+            }
+        ]);
+    };
+
+    // ฟังก์ชันแก้ไขยา (ตัวอย่าง: นำทางไปหน้าแก้ไข)
+    const handleEditMedicine = (item: Medicine) => {
+        router.push(`/medications/edit-medicine?id=${item.id}`);
+    };
+
+    // ฟิลเตอร์รายการยาเฉพาะของผู้ใช้
+    const filteredResults = showUserOnly && currentUserId
+        ? results.filter(item => item.userid === currentUserId)
+        : results;
     return (
         <View style={styles.container}>
             <LinearGradient
@@ -190,18 +232,39 @@ export default function MedicinesPage() {
 
                     {showResults && (
                         <View style={styles.section}>
+                            {/* เมนู filter เฉพาะยาของฉัน */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                                <TouchableOpacity
+                                    style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}
+                                    onPress={() => setShowUserOnly(v => !v)}
+                                >
+                                    <Ionicons name={showUserOnly ? 'checkbox' : 'square-outline'} size={20} color="#1a8e2d" />
+                                    <Text style={{ marginLeft: 6, color: '#1a8e2d', fontWeight: '600' }}>แสดงเฉพาะยาที่ฉันเพิ่ม</Text>
+                                </TouchableOpacity>
+                            </View>
                             <Text style={styles.sectionTitle}>
                                 {search.trim() ? 'ผลการค้นหา' : 'รายการยาทั้งหมด'}
                             </Text>
                             {loading ? (
                                 <Text style={{ textAlign: 'center', marginTop: 20 }}>กำลังค้นหา...</Text>
                             ) : (
-                                results.length > 0 ? (
-                                    results.map((item) => (
+                                filteredResults.length > 0 ? (
+                                    filteredResults.map((item) => (
                                         <View key={item.id} style={styles.resultCard}>
                                             <Text style={styles.resultName}>{item.medicine_name}</Text>
                                             {item.section_3_1_dosage && (
                                                 <Text style={styles.resultDetail}>ขนาดยา: {item.section_3_1_dosage}</Text>
+                                            )}
+                                            {/* ปุ่มแก้ไข/ลบ เฉพาะยาที่ userId ไม่เป็น null */}
+                                            {item.userid && item.userid !== 'null' && (
+                                                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                                                    <TouchableOpacity onPress={() => handleEditMedicine(item)} style={{ marginRight: 18 }}>
+                                                        <Ionicons name="create-outline" size={22} color="#1976D2" />
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity onPress={() => handleDeleteMedicine(item.id, item.userid)}>
+                                                        <Ionicons name="trash-outline" size={22} color="#C2185B" />
+                                                    </TouchableOpacity>
+                                                </View>
                                             )}
                                         </View>
                                     ))
@@ -213,6 +276,10 @@ export default function MedicinesPage() {
                     )}
                 </ScrollView>
             </View>
+            {/* Floating Action Button */}
+            <TouchableOpacity style={styles.fabStyle} onPress={handleAddMedicine} activeOpacity={0.85}>
+                <Ionicons name="add" size={32} color="white" />
+            </TouchableOpacity>
         </View>
     );
 }
@@ -349,5 +416,23 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3
+    },
+    // Floating Action Button (FAB) style
+    fabStyle: {
+        position: 'absolute' as const,
+        right: 24,
+        bottom: 36,
+        zIndex: 100,
+        elevation: 5,
+        backgroundColor: '#1a8e2d',
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
     },
 });

@@ -224,7 +224,8 @@ export default function SignupScreen () {
     try {
       console.log('Starting signup with data:', formData);
       
-      const CALL_API = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://192.168.1.89:3000';
+  const { getApiBaseUrl } = require('@/utils/env');
+  const CALL_API = getApiBaseUrl();
       const response = await fetch(CALL_API + '/api/auth/signup', {
         method: 'POST',
         headers: {

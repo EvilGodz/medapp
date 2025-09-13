@@ -1,3 +1,4 @@
+
 import { doseHistoryAPI, medRemindAPI } from './api';
 import { getDatabase } from './database';
 
@@ -34,6 +35,8 @@ export async function getMedReminds(): Promise<MedRemind[]> {
     }));
 }
 
+
+// Insert to local DB only
 export async function addMedRemind(medRemind: MedRemind): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
@@ -49,10 +52,25 @@ export async function addMedRemind(medRemind: MedRemind): Promise<void> {
         medRemind.dayFrequency || 1,
         medRemind.mealTiming || ''
     );
-    await medRemindAPI.create({
-        ...medRemind,
-        reminderEnabled: medRemind.reminderEnabled ? 1 : 0
-    });
+}
+
+// Try to sync to backend, queue to outbox if fails
+import { addToNotificationOutbox } from './outbox';
+export async function addMedRemindToApi(medRemind: MedRemind): Promise<boolean> {
+    try {
+        // 3s timeout for API call
+        await Promise.race([
+            medRemindAPI.create({
+                ...medRemind,
+                reminderEnabled: medRemind.reminderEnabled ? 1 : 0
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout syncing to API')), 3000))
+        ]);
+        return true;
+    } catch (e) {
+        await addToNotificationOutbox(medRemind);
+        return false;
+    }
 }
 
 export async function updateMedRemind(id: string, medRemind: MedRemind): Promise<void> {
@@ -78,6 +96,27 @@ export async function deleteMedRemind(id: string): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(`DELETE FROM medReminds WHERE id=?`, id);
     await medRemindAPI.delete(id);
+}
+// Toggle reminderEnabled for a medRemind by id
+export async function toggleMedRemindEnabled(id: string, enabled: boolean): Promise<MedRemind | null> {
+    const db = await getDatabase();
+    // Get current medRemind
+    const rows = await db.getAllAsync<any>('SELECT * FROM medReminds WHERE id=?', id);
+    if (!rows || rows.length === 0) return null;
+    const med = rows[0];
+    await db.runAsync(
+        `UPDATE medReminds SET reminderEnabled=? WHERE id=?`,
+        enabled ? 1 : 0,
+        id
+    );
+    // Return updated object (with correct types)
+    return {
+        ...med,
+        reminderEnabled: enabled,
+        times: JSON.parse(med.times),
+        dayFrequency: med.dayFrequency || 1,
+        mealTiming: med.mealTiming || med.mealtiming || '',
+    };
 }
 
 export async function getDoseHistory(): Promise<DoseHistory[]> {

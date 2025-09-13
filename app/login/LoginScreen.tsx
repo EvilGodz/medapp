@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from '@/utils/env';
+import { syncDoseHistoryWithBackend, syncMedRemindsWithBackend } from '@/utils/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -15,7 +17,7 @@ import {
 } from 'react-native';
 import { AuthResponse } from '../../types/types';
 
-const CALL_API = 'http://192.168.1.89:3000';
+const CALL_API = getApiBaseUrl();
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
@@ -52,7 +54,12 @@ const LoginScreen: React.FC = () => {
         }
         
         Alert.alert('สำเร็จ', data.message, [
-          { text: 'ตกลง', onPress: () => router.replace('/home/home') }
+          { text: 'ตกลง', onPress: async () => {
+              await syncMedRemindsWithBackend();
+              await syncDoseHistoryWithBackend();
+              router.replace('/home/home');
+            }
+          }
         ]);
       } else if (data.emailVerified === false) {
         Alert.alert(

@@ -15,5 +15,25 @@ export const medicinesAPI = {
     const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     const res = await api.get(`/medicines${qs}`);
     return res.data;
+  },
+  // เพิ่มยาใหม่
+  create: async (data: { medicine_name: string; section_3_1_dosage?: string; userId?: string; medicine_category?: string }) => {
+    const res = await api.post('/medicines', data);
+    return res.data;
+  },
+  // ลบยา
+  delete: async (id: string) => {
+    const res = await api.delete(`/medicines/${id}`);
+    return res.data;
+  },
+  // แก้ไขยา
+  update: async (id: string, data: { medicine_name: string; section_3_1_dosage?: string; medicine_category?: string }) => {
+    const res = await api.put(`/medicines/${id}`, data);
+    return res.data;
+  },
+  // ดึงข้อมูลยาตาม id
+  getById: async (id: string) => {
+    const res = await api.get(`/medicines/${id}`);
+    return res.data;
   }
 };

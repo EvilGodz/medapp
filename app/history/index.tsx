@@ -108,6 +108,24 @@ export default function HistoryScreen() {
     );
   };
 
+  function getDoseStatsForMed(med: MedRemind | undefined, history: DoseHistory[]) {
+    if (!med) return { taken: 0, total: 0 };
+    const taken = history.filter(
+      (dose) => dose.medRemindId === med.id && dose.taken
+    ).length;
+    // total = duration(วัน) * times.length (หรือ 1 ถ้าไม่มี times)
+    let durationDays = 0;
+    if (/(ongoing|ต่อเนื่อง)/i.test(med.duration)) {
+      durationDays = 0; // ไม่ track total สำหรับ ongoing
+    } else {
+      const match = med.duration.match(/(\d+)/);
+      if (match) durationDays = parseInt(match[1], 10);
+    }
+    const timesPerDay = Array.isArray(med.times) && med.times.length > 0 ? med.times.length : 1;
+    const total = durationDays > 0 ? durationDays * timesPerDay : 0;
+    return { taken, total };
+  }
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -219,6 +237,7 @@ export default function HistoryScreen() {
                         minute: "2-digit",
                       })}
                     </Text>
+                    <Text style={[styles.timeText, { color: '#888', fontSize: 13 }]}>ทานแล้ว {getDoseStatsForMed(dose.medRemind, history).taken} / {getDoseStatsForMed(dose.medRemind, history).total} ครั้ง</Text>
                   </View>
                   <View style={styles.statusContainer}>
                     {dose.taken ? (

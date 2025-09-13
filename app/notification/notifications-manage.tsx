@@ -1,12 +1,19 @@
-import { deleteMedRemind, getMedReminds } from '@/utils/storage';
+type ToggleMedRemind = { id: string; reminderEnabled: number };
+import { medRemindAPI } from '@/utils/api';
+import { addToMedRemindDeleteOutbox, addToMedRemindToggleOutbox, addToMedRemindUpdateOutbox } from '@/utils/outbox';
+import { deleteMedRemind, getMedReminds, toggleMedRemindEnabled, updateMedRemind } from '@/utils/storage';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function NotificationsManagerScreen() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editData, setEditData] = useState<any | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
   const router = useRouter();
 
   const loadNotifications = async () => {
@@ -44,18 +51,80 @@ export default function NotificationsManagerScreen() {
       {
         text: 'ลบ', style: 'destructive', onPress: async () => {
           try {
-            await deleteMedRemind(id);
-            loadNotifications();
+            // 1s timeout for delete
+            await Promise.race([
+              deleteMedRemind(id),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout deleting')), 1000))
+            ]);
           } catch (e) {
-            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบแจ้งเตือนได้');
+            // If offline or failed, queue in outbox
+            await addToMedRemindDeleteOutbox(id);
           }
+          loadNotifications();
         }
       }
     ]);
   };
 
+  // In-place edit modal logic
   const handleEdit = (id: string) => {
-    router.push({ pathname: '/notification/add', params: { editId: id } });
+    const med = notifications.find((n) => n.id === id);
+    if (med) {
+      setEditData({ ...med });
+      setEditModalVisible(true);
+    }
+  };
+
+  const handleEditSave = async () => {
+    if (!editData) return;
+    setEditSubmitting(true);
+    try {
+      // Update local DB immediately for UX
+      await updateMedRemind(editData.id, editData);
+      // Try to sync to backend, queue to outbox if fails (1s timeout)
+      let apiSynced = false;
+      try {
+        await Promise.race([
+          updateMedRemind(editData.id, editData),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout updating')), 1000))
+        ]);
+        apiSynced = true;
+      } catch (e) {
+        await addToMedRemindUpdateOutbox(editData.id, editData);
+        apiSynced = false;
+      }
+      setEditModalVisible(false);
+      setEditData(null);
+      loadNotifications();
+      Alert.alert(
+        apiSynced ? 'สำเร็จ' : 'บันทึกแบบออฟไลน์',
+        apiSynced ? 'แก้ไขข้อมูลสำเร็จ' : 'แก้ไขข้อมูลแบบออฟไลน์ จะซิงค์เมื่อออนไลน์'
+      );
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleEditChange = (field: string, value: any) => {
+    setEditData((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const handleToggleReminder = async (item: any) => {
+    const newValue = item.reminderEnabled ? 0 : 1;
+    // Update local DB immediately for UX
+    await toggleMedRemindEnabled(item.id, !!newValue);
+    // Try to sync to backend, queue to toggle outbox if fails (1s timeout)
+    try {
+      await Promise.race([
+        medRemindAPI.toggle(item.id, newValue),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout updating')), 1000))
+      ]);
+      // Wait 500ms to ensure API call is sent before UI refresh
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (e) {
+      await addToMedRemindToggleOutbox(item.id, newValue);
+    }
+    loadNotifications();
   };
 
   const renderItem = ({ item }: { item: any }) => (
@@ -66,6 +135,13 @@ export default function NotificationsManagerScreen() {
         <Text style={styles.detail}>เริ่ม: {item.startDate ? new Date(item.startDate).toLocaleDateString() : '-'}</Text>
       </View>
       <View style={styles.actions}>
+        <Switch
+          value={!!item.reminderEnabled}
+          onValueChange={() => handleToggleReminder(item)}
+          trackColor={{ false: '#ddd', true: '#1a8e2d' }}
+          thumbColor={Platform.OS === 'android' ? (item.reminderEnabled ? '#1a8e2d' : '#f4f3f4') : ''}
+          style={{ marginRight: 8 }}
+        />
         <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item.id)}>
           <Ionicons name="create-outline" size={22} color="#1976D2" />
         </TouchableOpacity>
@@ -91,6 +167,85 @@ export default function NotificationsManagerScreen() {
           contentContainerStyle={{ padding: 16 }}
         />
       )}
+
+      {/* Edit Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>แก้ไขการแจ้งเตือน</Text>
+            {editData && (
+              <>
+                {/* reminderEnabled switch OUTSIDE modal content */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18, alignSelf: 'center' }}>
+                  <Text style={{ marginRight: 8, fontSize: 16 }}>เปิดแจ้งเตือน</Text>
+                  <Switch
+                    value={!!editData.reminderEnabled}
+                    onValueChange={val => handleEditChange('reminderEnabled', val)}
+                    trackColor={{ false: '#ddd', true: '#1a8e2d' }}
+                    thumbColor={Platform.OS === 'android' ? (editData.reminderEnabled ? '#1a8e2d' : '#f4f3f4') : ''}
+                  />
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={editData.name}
+                  onChangeText={text => handleEditChange('name', text)}
+                  placeholder="ชื่อยา"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={editData.dosage}
+                  onChangeText={text => handleEditChange('dosage', text)}
+                  placeholder="ขนาดยา"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={editData.duration}
+                  onChangeText={text => handleEditChange('duration', text)}
+                  placeholder="ระยะเวลา"
+                />
+                {/* mealTiming as dropdown */}
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ marginBottom: 4, fontSize: 15 }}>เวลากับมื้ออาหาร</Text>
+                  <View style={{ borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, backgroundColor: '#fafafa' }}>
+                    <Picker
+                      selectedValue={editData.mealTiming}
+                      onValueChange={val => handleEditChange('mealTiming', val)}
+                      style={{ height: 50 }}
+                    >
+                      <Picker.Item label="ก่อนอาหาร" value="ก่อนอาหาร" />
+                      <Picker.Item label="หลังอาหาร" value="หลังอาหาร" />
+                      <Picker.Item label="ระหว่างอาหาร" value="ระหว่างอาหาร" />
+                      <Picker.Item label="หลังอาหารทันที" value="หลังอาหารทันที" />
+                      <Picker.Item label="ไม่ระบุ" value="ไม่ระบุ" />
+                    </Picker>
+                  </View>
+                </View>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={[styles.saveButton, editSubmitting && styles.saveButtonDisabled]}
+                    onPress={handleEditSave}
+                    disabled={editSubmitting}
+                  >
+                    <Text style={styles.saveButtonText}>{editSubmitting ? 'กำลังบันทึก...' : 'บันทึก'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setEditModalVisible(false)}
+                    disabled={editSubmitting}
+                  >
+                    <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -145,5 +300,75 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     backgroundColor: '#f3f3f3',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'stretch',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a8e2d',
+    marginBottom: 18,
+    textAlign: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 12,
+    backgroundColor: '#fafafa',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  saveButton: {
+    backgroundColor: '#1a8e2d',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  cancelButton: {
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    flex: 1,
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

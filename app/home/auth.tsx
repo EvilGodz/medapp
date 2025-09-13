@@ -5,6 +5,10 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { scheduleMedicationReminder } from '../../utils/notifications';
+import { processDoseOutbox, processMedRemindDeleteOutbox, processMedRemindUpdateOutbox, processNotificationOutbox } from '../../utils/outbox';
+import { addMedRemind, deleteMedRemind, recordDose, syncDoseHistoryWithBackend, syncMedRemindsWithBackend, updateMedRemind } from '../../utils/storage';
+
 
 const {width} = Dimensions.get("window");
 
@@ -23,6 +27,14 @@ export default function AuthScreen() {
             if (!token || !user) {
                 router.replace('/login/LoginScreen');
             }
+            // 1. Sync from backend (may clear local DB)
+            await syncMedRemindsWithBackend();
+            await syncDoseHistoryWithBackend();
+            // 2. Process outboxes (restore offline data and sync to API)
+            await processNotificationOutbox(addMedRemind, scheduleMedicationReminder);
+            await processDoseOutbox(recordDose);
+            await processMedRemindUpdateOutbox(updateMedRemind);
+            await processMedRemindDeleteOutbox(deleteMedRemind);
         };
         checkAuth();
         checkBiometrics();
@@ -51,6 +63,11 @@ export default function AuthScreen() {
                 disableDeviceFallback: false,
             });
             if(auth.success){
+                // Process outboxes after successful auth
+                await processNotificationOutbox(addMedRemind, scheduleMedicationReminder);
+                await processDoseOutbox(recordDose);
+                await processMedRemindUpdateOutbox(updateMedRemind);
+                await processMedRemindDeleteOutbox(deleteMedRemind);
                 router.replace("/home/home");
             }else{
                 setError('Authentication Failed: Please Try again');
