@@ -103,6 +103,16 @@ export default function EditMedicineScreen() {
               </Picker>
             </View>
           </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>หมายเหตุ</Text>
+            <TextInput
+              style={styles.input}
+              value={section_4_precautions}
+              onChangeText={setSection4Precautions}
+              placeholder="หมายเหตุ (เช่น ห้ามใช้ร่วมกับยาอื่น)"
+              placeholderTextColor="#aaa"
+            />
+          </View>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <TouchableOpacity
             style={[styles.saveButton, loading && { opacity: 0.7 }]}

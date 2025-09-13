@@ -1,5 +1,5 @@
-import { scheduleMedicationReminder } from "@/utils/notifications";
 import { getApiBaseUrl } from "@/utils/env";
+import { scheduleMedicationReminder } from "@/utils/notifications";
 import { addMedRemind, addMedRemindToApi } from "@/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -704,11 +704,9 @@ export default function addNotificationScreen() {
                         </View>
                     </View>
 
-
-
-
-
-                    <View style={styles.section}>
+                    {/* หมายเหตุ */}
+                    
+                    {/* <View style={styles.section}>
                         <View style={styles.textAreaContainer}>
                             <TextInput
                                 style={styles.textArea}
@@ -724,7 +722,7 @@ export default function addNotificationScreen() {
                             />
 
                         </View>
-                    </View>
+                    </View> */}
                 </ScrollView>
                 <View style={styles.footer}>
                     <TouchableOpacity style={[styles.saveButton, isSubmitting && styles.saveButtonDisabled]}

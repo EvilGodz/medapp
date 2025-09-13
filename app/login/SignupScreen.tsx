@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,7 +17,7 @@ import {
 import { useRouter } from 'expo-router';
 import { AuthResponse, SignupFormData } from '../../types/types';
 
-export default function SignupScreen () {
+export default function SignupScreen() {
   const router = useRouter();
   const [formData, setFormData] = useState<SignupFormData>({
     fullname: '',
@@ -50,17 +51,18 @@ export default function SignupScreen () {
       'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
       'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
     ];
-    
+
     const day = date.getDate();
     const month = months[date.getMonth()];
     const year = date.getFullYear() + 543;
-    
+
     return `${day} ${month} ${year}`;
   };
 
-  const handleDateSelect = (): void => {
-    const formattedDate = formatDate(selectedDate);
+  const handleDateSelect = (date: Date): void => {
+    const formattedDate = formatDate(date);
     handleInputChange('birth_date', formattedDate);
+    setSelectedDate(date);
     setShowDatePicker(false);
   };
 
@@ -91,114 +93,197 @@ export default function SignupScreen () {
     return days;
   };
 
-  const CustomDatePicker: React.FC = () => (
-    <Modal
-      visible={showDatePicker}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowDatePicker(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.datePickerContainer}>
-          <Text style={styles.datePickerTitle}>เลือกวันเกิด</Text>
-          
-          <View style={styles.datePickerContent}>
-            {/* ปี */}
-            <View style={styles.pickerColumn}>
-              <Text style={styles.pickerLabel}>ปี</Text>
-              <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                {generateYears().map(year => (
-                  <TouchableOpacity
-                    key={year}
-                    style={[
-                      styles.pickerItem,
-                      selectedDate.getFullYear() === year && styles.selectedPickerItem
-                    ]}
-                    onPress={() => setSelectedDate(new Date(year, selectedDate.getMonth(), selectedDate.getDate()))}
-                  >
-                    <Text style={[
-                      styles.pickerItemText,
-                      selectedDate.getFullYear() === year && styles.selectedPickerItemText
-                    ]}>
-                      {year + 543}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+  type DatePickerProps = {
+    visible: boolean;
+    initialDate: Date;
+    onClose: () => void;
+    onConfirm: (date: Date) => void;
+  };
+
+  const ITEM_HEIGHT = 44;
+
+  const PickerItem = memo(function PickerItem({
+    label,
+    selected,
+    onPress,
+  }: {
+    label: string | number;
+    selected: boolean;
+    onPress: () => void;
+  }) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[
+          { height: ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' },
+          selected && { backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 10 },
+        ]}
+        activeOpacity={0.6}
+      >
+        <Text style={[{ fontSize: 16 }, selected && { fontWeight: '700', color: '#000' }]}>{label}</Text>
+      </TouchableOpacity>
+    );
+  });
+
+  const CustomDatePicker: React.FC<DatePickerProps> = ({ visible, initialDate, onClose, onConfirm }) => {
+    const [draftDate, setDraftDate] = useState<Date>(initialDate);
+
+    useEffect(() => {
+      if (visible) setDraftDate(initialDate);
+    }, [visible, initialDate]);
+
+    const years = useMemo(() => {
+      const currentYear = new Date().getFullYear();
+      const arr: number[] = [];
+      for (let y = currentYear - 80; y <= currentYear - 10; y++) arr.push(y);
+      return arr.reverse(); // มาก่อนคือปีใหม่กว่า
+    }, []);
+
+    const months = useMemo(
+      () => ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'],
+      []
+    );
+
+    const daysInMonth = useMemo(() => {
+      const y = draftDate.getFullYear();
+      const m = draftDate.getMonth();
+      return new Date(y, m + 1, 0).getDate();
+    }, [draftDate]);
+
+    const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
+
+    const selectYear = useCallback(
+      (y: number) => {
+        startTransition(() => {
+          const last = new Date(y, draftDate.getMonth() + 1, 0).getDate();
+          const d = Math.min(draftDate.getDate(), last);
+          setDraftDate(new Date(y, draftDate.getMonth(), d));
+        });
+      },
+      [draftDate]
+    );
+
+    const selectMonth = useCallback(
+      (m: number) => {
+        startTransition(() => {
+          const last = new Date(draftDate.getFullYear(), m + 1, 0).getDate();
+          const d = Math.min(draftDate.getDate(), last);
+          setDraftDate(new Date(draftDate.getFullYear(), m, d));
+        });
+      },
+      [draftDate]
+    );
+
+    const selectDay = useCallback(
+      (d: number) => {
+        startTransition(() => {
+          setDraftDate(new Date(draftDate.getFullYear(), draftDate.getMonth(), d));
+        });
+      },
+      [draftDate]
+    );
+
+    const getItemLayout = useCallback(
+      (_: any, index: number) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index }),
+      []
+    );
+
+    return (
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={styles.modalContainer}>
+          <View style={styles.datePickerContainer}>
+            <Text style={styles.datePickerTitle}>เลือกวันเกิด</Text>
+
+            <View style={styles.datePickerContent}>
+              {/* ปี */}
+              <View style={styles.pickerColumn}>
+                <Text style={styles.pickerLabel}>ปี</Text>
+                <FlatList
+                  data={years}
+                  keyExtractor={(y) => String(y)}
+                  renderItem={({ item: y }) => (
+                    <PickerItem
+                      label={y + 543}
+                      selected={draftDate.getFullYear() === y}
+                      onPress={() => selectYear(y)}
+                    />
+                  )}
+                  getItemLayout={getItemLayout}
+                  initialNumToRender={20}
+                  windowSize={7}
+                  removeClippedSubviews
+                  showsVerticalScrollIndicator={false}
+                  style={[styles.pickerScroll, { maxHeight: 160 }]}
+                />
+              </View>
+
+              {/* เดือน */}
+              <View style={styles.pickerColumn}>
+                <Text style={styles.pickerLabel}>เดือน</Text>
+                <FlatList
+                  data={months}
+                  keyExtractor={(_, i) => String(i)}
+                  renderItem={({ item: label, index }) => (
+                    <PickerItem
+                      label={label}
+                      selected={draftDate.getMonth() === index}
+                      onPress={() => selectMonth(index)}
+                    />
+                  )}
+                  getItemLayout={getItemLayout}
+                  initialNumToRender={12}
+                  windowSize={5}
+                  removeClippedSubviews
+                  showsVerticalScrollIndicator={false}
+                  style={[styles.pickerScroll, { maxHeight: 160 }]}
+                />
+              </View>
+
+              {/* วัน */}
+              <View style={styles.pickerColumn}>
+                <Text style={styles.pickerLabel}>วัน</Text>
+                <FlatList
+                  data={days}
+                  keyExtractor={(d) => String(d)}
+                  renderItem={({ item: d }) => (
+                    <PickerItem
+                      label={d}
+                      selected={draftDate.getDate() === d}
+                      onPress={() => selectDay(d)}
+                    />
+                  )}
+                  getItemLayout={getItemLayout}
+                  initialNumToRender={31}
+                  windowSize={7}
+                  removeClippedSubviews
+                  showsVerticalScrollIndicator={false}
+                  style={[styles.pickerScroll, { maxHeight: 160 }]}
+                />
+              </View>
             </View>
 
-            {/* เดือน */}
-            <View style={styles.pickerColumn}>
-              <Text style={styles.pickerLabel}>เดือน</Text>
-              <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                {generateMonths().map((month, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.pickerItem,
-                      selectedDate.getMonth() === index && styles.selectedPickerItem
-                    ]}
-                    onPress={() => setSelectedDate(new Date(selectedDate.getFullYear(), index, selectedDate.getDate()))}
-                  >
-                    <Text style={[
-                      styles.pickerItemText,
-                      selectedDate.getMonth() === index && styles.selectedPickerItemText
-                    ]}>
-                      {month}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+            <View style={styles.datePickerButtons}>
+              <TouchableOpacity style={[styles.datePickerButton, styles.cancelButton]} onPress={onClose}>
+                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+              </TouchableOpacity>
 
-            {/* วัน */}
-            <View style={styles.pickerColumn}>
-              <Text style={styles.pickerLabel}>วัน</Text>
-              <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                {generateDays().map(day => (
-                  <TouchableOpacity
-                    key={day}
-                    style={[
-                      styles.pickerItem,
-                      selectedDate.getDate() === day && styles.selectedPickerItem
-                    ]}
-                    onPress={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day))}
-                  >
-                    <Text style={[
-                      styles.pickerItemText,
-                      selectedDate.getDate() === day && styles.selectedPickerItemText
-                    ]}>
-                      {day}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <TouchableOpacity
+                style={[styles.datePickerButton, styles.confirmButton]}
+                onPress={() => onConfirm(draftDate)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmButtonText}>ตกลง</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-
-          <View style={styles.datePickerButtons}>
-            <TouchableOpacity
-              style={[styles.datePickerButton, styles.cancelButton]}
-              onPress={() => setShowDatePicker(false)}
-            >
-              <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.datePickerButton, styles.confirmButton]}
-              onPress={handleDateSelect}
-            >
-              <Text style={styles.confirmButtonText}>ตกลง</Text>
-            </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   const validateForm = (): boolean => {
     const { fullname, email, password, confirmPassword } = formData;
-    
+
     if (!fullname || !email || !password) {
       Alert.alert('ข้อผิดพลาด', 'กรุณากรอกข้อมูลที่จำเป็น');
       return false;
@@ -223,9 +308,9 @@ export default function SignupScreen () {
     setLoading(true);
     try {
       console.log('Starting signup with data:', formData);
-      
-  const { getApiBaseUrl } = require('@/utils/env');
-  const CALL_API = getApiBaseUrl();
+
+      const { getApiBaseUrl } = require('@/utils/env');
+      const CALL_API = getApiBaseUrl();
       const response = await fetch(CALL_API + '/api/auth/signup', {
         method: 'POST',
         headers: {
@@ -248,8 +333,8 @@ export default function SignupScreen () {
       if (data.success) {
         // ไม่เก็บ token ยืนยันอีเมลก่อน
         Alert.alert('สำเร็จ', data.message, [
-          { 
-            text: 'ตกลง', 
+          {
+            text: 'ตกลง',
             onPress: () => router.push({ pathname: '/login/EmailVerificationScreen', params: { email: formData.email, fullname: formData.fullname } })
           }
         ]);
@@ -265,15 +350,15 @@ export default function SignupScreen () {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.formContainer}>
-         
+
           <Text style={styles.title}>สร้างบัญชีของคุณ</Text>
-          
+
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>ชื่อ</Text>
             <TextInput
@@ -353,7 +438,7 @@ export default function SignupScreen () {
             />
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.signupButton}
             onPress={handleSignup}
             disabled={loading}
@@ -363,8 +448,8 @@ export default function SignupScreen () {
             ) : (
               <Text style={styles.signupButtonText}>สมัครสมาชิก</Text>
             )}
-          </TouchableOpacity>   
-          
+          </TouchableOpacity>
+
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>มีบัญชีอยู่แล้ว? </Text>
             <TouchableOpacity onPress={() => router.push('/login/LoginScreen')}>
@@ -373,8 +458,13 @@ export default function SignupScreen () {
           </View>
         </View>
       </ScrollView>
-      
-      <CustomDatePicker />
+
+      <CustomDatePicker
+        visible={showDatePicker}
+        initialDate={selectedDate}
+        onClose={() => setShowDatePicker(false)}
+        onConfirm={(d) => handleDateSelect(d)}
+      />
     </KeyboardAvoidingView>
   );
 };
