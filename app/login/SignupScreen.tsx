@@ -356,16 +356,11 @@ export default function SignupScreen() {
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.formContainer}>
-          <View style={styles.header}>
-
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}>
-              <Ionicons name="chevron-back" size={28} color={'#1a8e2d'} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>เพิ่มการแจ้งเตือนใหม่</Text>
-          </View>
-
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color={'#1a8e2d'} />
+          </TouchableOpacity>
           <Text style={styles.title}>สร้างบัญชีของคุณ</Text>
 
           <View style={styles.inputContainer}>
