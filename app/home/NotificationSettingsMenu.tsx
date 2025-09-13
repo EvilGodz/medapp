@@ -1,3 +1,5 @@
+import { router } from '@/.expo/types/router';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { Image, Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -15,7 +17,7 @@ interface Props {
 
 const defaultSettings: NotificationSettings = { sound: true, vibrate: true, showImage: false };
 
-const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings, onChange = () => {} }) => {
+const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings, onChange = () => { } }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editData, setEditData] = useState<NotificationSettings>(settings || defaultSettings);
   const [submitting, setSubmitting] = useState(false);
@@ -29,7 +31,7 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
         if (saved) {
           setEditData(JSON.parse(saved));
         }
-      } catch {}
+      } catch { }
       setLoaded(true);
     })();
   }, []);
@@ -51,7 +53,7 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
     setSubmitting(true);
     try {
       await AsyncStorage.setItem('notification_settings', JSON.stringify(editData));
-    } catch {}
+    } catch { }
     setTimeout(() => {
       onChange(editData);
       setModalVisible(false);
@@ -61,9 +63,19 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
   const handleChange = (field: keyof NotificationSettings, value: boolean) => {
     setEditData(prev => ({ ...prev, [field]: value }));
   };
+  const handleGoBack = () => {
+    router.back();
+  };
 
   return (
     <>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backIconContainer}>
+          <Ionicons name="arrow-back" size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Profile</Text>
+      </View>
       <TouchableOpacity style={styles.card} onPress={openModal} activeOpacity={0.85}>
         <Text style={styles.title}>ตั้งค่าการแจ้งเตือน</Text>
         <Text style={{ color: '#888', fontSize: 15 }}>
@@ -229,6 +241,27 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '700',
     fontSize: 16,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827'
+  },
+  header: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  backIconContainer: {
+    padding: 4,
+    marginRight: 12
   },
 });
 

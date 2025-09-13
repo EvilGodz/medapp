@@ -151,9 +151,20 @@ export default function NotificationsManagerScreen() {
       </View>
     </View>
   );
+  const handleGoBack = () => {
+      router.back();
+    };
 
   return (
+    
     <View style={styles.container}>
+      {/* Header */}
+            <View style={styles.headerBack}>
+              <TouchableOpacity onPress={handleGoBack} style={styles.backIconContainer}>
+                <Ionicons name="arrow-back" size={24} color="#374151" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Profile</Text>
+            </View>
       <Text style={styles.header}>จัดการการแจ้งเตือน</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#1a8e2d" style={{ marginTop: 40 }} />
@@ -370,5 +381,26 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '700',
     fontSize: 16,
+  },
+    headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827'
+  },
+  headerBack: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  backIconContainer: {
+    padding: 4,
+    marginRight: 12
   },
 });
