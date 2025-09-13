@@ -1,6 +1,6 @@
-import { router } from '@/.expo/types/router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from 'react';
 import { Image, Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
@@ -15,6 +15,7 @@ interface Props {
   onChange?: (settings: NotificationSettings) => void;
 }
 
+const router = useRouter();
 const defaultSettings: NotificationSettings = { sound: true, vibrate: true, showImage: false };
 
 const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings, onChange = () => { } }) => {
