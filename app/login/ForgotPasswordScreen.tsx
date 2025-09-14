@@ -329,7 +329,6 @@ const styles = StyleSheet.create({
   },
   helpContainer: {
     alignItems: 'center',
-    position: 'absolute',
     bottom: 30,
   },
   helpText: {
