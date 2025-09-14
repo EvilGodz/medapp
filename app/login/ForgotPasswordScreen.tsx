@@ -13,8 +13,7 @@ import {
   View
 } from 'react-native';
 
-import { getApiBaseUrl } from '@/utils/env';
-const CALL_API = getApiBaseUrl();
+const CALL_API = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://192.168.1.55:3000';
 
 const ForgotPasswordScreen: React.FC = () => {
   const router = useRouter();
@@ -188,13 +187,11 @@ const ForgotPasswordScreen: React.FC = () => {
         >
           <Text style={styles.backLinkText}>← กลับไปเข้าสู่ระบบ</Text>
         </TouchableOpacity>
-
-        <View style={styles.helpContainer}>
-          <Text style={styles.helpText}>
-            จำอีเมลไม่ได้? ติดต่อ:{' '}
-            <Text style={styles.supportEmail}>theerapat.kh@rmuti.ac.th</Text>
-          </Text>
-        </View>
+      </View>
+      <View style={styles.helpContainer}>
+        <Text style={styles.helpText}>
+          จำอีเมลไม่ได้? ติดต่อ: <Text style={styles.supportEmail}>theerapat.kh@rmuti.ac.th</Text>
+        </Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -329,7 +326,8 @@ const styles = StyleSheet.create({
   },
   helpContainer: {
     alignItems: 'center',
-    bottom: 30,
+    marginTop: 'auto',
+    marginBottom: 30,
   },
   helpText: {
     fontSize: 14,
