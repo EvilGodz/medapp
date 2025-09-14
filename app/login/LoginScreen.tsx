@@ -84,6 +84,10 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  const handleForgotPassword = (): void => {
+    router.push('/login/ForgotPasswordScreen');
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
@@ -134,6 +138,13 @@ const LoginScreen: React.FC = () => {
           ) : (
             <Text style={styles.loginButtonText}>เข้าสู่ระบบ</Text>
           )}
+        </TouchableOpacity>
+        {/* Forgot Password Button */}
+        <TouchableOpacity 
+          style={styles.forgotPasswordButton}
+          onPress={handleForgotPassword}
+        >
+          <Text style={styles.forgotPasswordText}>ลืมรหัสผ่าน?</Text>
         </TouchableOpacity>
 
         <View style={styles.signupContainer}>
@@ -243,6 +254,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#28a745',
     fontWeight: 'bold',
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 10,
+    marginTop: 15,
+    marginBottom: 10,
+  },
+  forgotPasswordText: {
+    color: '#28a745',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });
 
