@@ -7,6 +7,8 @@ export interface User {
   birth_date?: string;
   weight?: number;
   height?: number;
+  gender?: string;
+  phone?: string;
   created_at: string;
   updated_at: string;
   email_verified: boolean;

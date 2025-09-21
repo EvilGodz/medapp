@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from '@/utils/env';
 import { syncDoseHistoryWithBackend, syncMedRemindsWithBackend } from '@/utils/storage';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -24,7 +25,7 @@ const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const handleLogin = async (): Promise<void> => {
     if (!email || !password) {
       Alert.alert('ข้อผิดพลาด', 'กรุณากรอกอีเมลและรหัสผ่าน');
@@ -110,6 +111,7 @@ const LoginScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder="ex: som.chai@gmail.com"
+            placeholderTextColor="black"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -119,13 +121,27 @@ const LoginScreen: React.FC = () => {
 
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Password</Text>
+          <View style={styles.inputBox}>
           <TextInput
-            style={styles.input}
+            style={styles.inputPassword}
             placeholder="••••••••••"
+            placeholderTextColor="black"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
+            
           />
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Ionicons
+          name={showPassword ? 'eye' : 'eye-off'}
+          size={30}
+          color="#888"
+          style={styles.icon}
+        />
+          </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity 
@@ -196,6 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     paddingHorizontal: 15,
     paddingVertical: 15,
+    width: '100%',
     borderRadius: 10,
     fontSize: 16,
     borderWidth: 1,
@@ -267,6 +284,31 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textDecorationLine: 'underline',
   },
+  passwordBox: {
+    flexDirection: 'row',
+    alignItems: 'center', 
+  },
+  icon: {
+    marginLeft: 10
+  },
+  inputBox: {
+    flexDirection:'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    width: '100%',
+    borderRadius: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    color: '#333',
+  },
+  inputPassword: {
+    width: '85%',
+    borderRadius: 10,
+    fontSize: 16,
+    color: '#333',
+  }
 });
 
 export default LoginScreen;

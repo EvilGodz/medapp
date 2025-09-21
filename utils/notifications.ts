@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notification from "expo-notifications";
 import { Platform } from "react-native";
 import { MedRemind } from "./storage";
@@ -54,11 +55,23 @@ export interface NotificationSettings {
 
 export async function scheduleMedicationReminder(
   medication: MedRemind,
-  settings: NotificationSettings = { sound: true, vibrate: true, showImage: false }
+  settings?: NotificationSettings
 ): Promise<string|undefined> {
   if (!medication.reminderEnabled) return;
 
   try {
+    // Load notification settings from AsyncStorage if not provided
+    let notificationSettings: NotificationSettings;
+    if (settings) {
+      notificationSettings = settings;
+    } else {
+      try {
+        const saved = await AsyncStorage.getItem('notification_settings');
+        notificationSettings = saved ? JSON.parse(saved) : { sound: true, vibrate: true, showImage: false };
+      } catch {
+        notificationSettings = { sound: true, vibrate: true, showImage: false };
+      }
+    }
     // Cancel all existing notifications for this medication first
     await cancelMedicationReminders(medication.id);
 
@@ -112,10 +125,10 @@ export async function scheduleMedicationReminder(
             title: "Medication Reminder",
             body: `อย่าลืมทาน ${medication.name} (${medication.dosage})`,
             data: { medicationId: medication.id },
-            sound: settings.sound ? undefined : null, // undefined = use default, null = no sound
-            vibrate: settings.vibrate ? undefined : [], // undefined = use default, [] = no vibrate
+            sound: notificationSettings.sound ? undefined : null, // undefined = use default, null = no sound
+            vibrate: notificationSettings.vibrate ? undefined : [], // undefined = use default, [] = no vibrate
             // showImage: custom logic below
-            ...(settings.showImage && {
+            ...(notificationSettings.showImage && {
               // You can use local image or remote url here
               // For demo, use local icon
               // Only Android supports bigPicture
@@ -169,7 +182,7 @@ export async function cancelMedicationReminders(
 
   export async function updateMedicationReminders(
     medication: MedRemind,
-    settings: NotificationSettings = { sound: true, vibrate: true, showImage: false }
+    settings?: NotificationSettings
   ): Promise<void> {
     try {
       //cancel old reminders
@@ -179,5 +192,15 @@ export async function cancelMedicationReminders(
       await scheduleMedicationReminder(medication, settings);
     } catch (error) {
       console.error("Error updating medication reminders:", error);
+    }
+  }
+
+  // ลบแจ้งเตือนทั้งหมด (ใช้เมื่อออกจากระบบ)
+  export async function cancelAllNotifications(): Promise<void> {
+    try {
+      await Notification.cancelAllScheduledNotificationsAsync();
+      console.log("All notifications cancelled");
+    } catch (error) {
+      console.error("Error cancelling all notifications:", error);
     }
   }

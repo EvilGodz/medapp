@@ -249,17 +249,17 @@ export default function HomeScreen() {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         const [hhStr, mmStr = '0'] = time.split(':');
-                const hh = parseInt(hhStr, 10) || 0;
-                const mm = parseInt(mmStr, 10) || 0;
+        const hh = parseInt(hhStr, 10) || 0;
+        const mm = parseInt(mmStr, 10) || 0;
         const sched = new Date(
-                    todayStart.getFullYear(),
-                    todayStart.getMonth(),
-                    todayStart.getDate(),
-                    hh,
-                    mm,
-                    0,
-                    0
-                );
+            todayStart.getFullYear(),
+            todayStart.getMonth(),
+            todayStart.getDate(),
+            hh,
+            mm,
+            0,
+            0
+        );
         const oneHourAfter = new Date(sched.getTime() + 60 * 60 * 1000);
         const takenToday = isTimeDoseTaken(med.id, time);
         return !takenToday && now > oneHourAfter;
@@ -301,9 +301,13 @@ export default function HomeScreen() {
                                 onPress={() => setShowNotifications(true)}
                             >
                                 <Ionicons name="notifications-outline" size={24} color="white" />
-                                {<View style={style.notificationBadge}>
-                                    <Text style={style.notificationCount}>
-                                        {todayMedications.length}</Text></View>}
+                                {todayMedications.length > 0 && (
+                                    <View style={style.notificationBadge}>
+                                        <Text style={style.notificationCount}>
+                                            {todayMedications.length}
+                                        </Text>
+                                    </View>
+                                )}
                             </TouchableOpacity>
                         </View>
                         <CircularProgress
@@ -341,7 +345,7 @@ export default function HomeScreen() {
                     ) : (
                         (() => {
                             type Entry = { med: MedRemind; time: string };
-                            const classifyPeriod = (timeStr: string): 'เช้า'|'กลางวัน'|'เย็น'|'ก่อนนอน' => {
+                            const classifyPeriod = (timeStr: string): 'เช้า' | 'กลางวัน' | 'เย็น' | 'ก่อนนอน' => {
                                 const [hhStr] = (timeStr || '23:59').split(':');
                                 const hh = parseInt(hhStr, 10) || 23;
                                 if (hh < 10) return 'เช้า';
@@ -364,7 +368,7 @@ export default function HomeScreen() {
                                 if (!byPeriod[period]) byPeriod[period] = [];
                                 byPeriod[period].push(e);
                             }
-                            const periodOrder = ['เช้า','กลางวัน','เย็น','ก่อนนอน'];
+                            const periodOrder = ['เช้า', 'กลางวัน', 'เย็น', 'ก่อนนอน'];
                             // Build final UI: Period groups (pending only), then global 'รับประทานแล้ว' and 'พลาด'
                             return (
                                 <>
@@ -376,8 +380,8 @@ export default function HomeScreen() {
                                             mealGroups[meal].push(e);
                                         }
                                         // compute total pending in this period
-                                        const totalPendingInPeriod = ['ก่อนอาหาร','หลังอาหาร','ระหว่างอาหาร','หลังอาหารทันที','ไม่ระบุ',''].reduce((acc, meal) => {
-                                            const list = (mealGroups[meal] || []).slice().sort((a,b) => (a.time||'').localeCompare(b.time||''));
+                                        const totalPendingInPeriod = ['ก่อนอาหาร', 'หลังอาหาร', 'ระหว่างอาหาร', 'หลังอาหารทันที', 'ไม่ระบุ', ''].reduce((acc, meal) => {
+                                            const list = (mealGroups[meal] || []).slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
                                             const pending = list.filter(e => !isTimeDoseTaken(e.med.id, e.time) && !isTimeDoseMissed(e.med, e.time));
                                             return acc + pending.length;
                                         }, 0);
@@ -388,8 +392,8 @@ export default function HomeScreen() {
                                                     <Ionicons name="time-outline" size={16} color="#1a8e2d" />
                                                     <Text style={{ marginLeft: 6, fontWeight: '700', color: '#1a1a1a' }}>{period}</Text>
                                                 </View>
-                                                {['ก่อนอาหาร','หลังอาหาร','ระหว่างอาหาร','หลังอาหารทันที','ไม่ระบุ',''].map((meal) => {
-                                                    const list = mealGroups[meal].slice().sort((a,b) => (a.time||'').localeCompare(b.time||''));
+                                                {['ก่อนอาหาร', 'หลังอาหาร', 'ระหว่างอาหาร', 'หลังอาหารทันที', 'ไม่ระบุ', ''].map((meal) => {
+                                                    const list = mealGroups[meal].slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
                                                     const pending = list.filter(e => !isTimeDoseTaken(e.med.id, e.time) && !isTimeDoseMissed(e.med, e.time));
                                                     if (pending.length === 0) return null;
                                                     return (
@@ -401,15 +405,15 @@ export default function HomeScreen() {
                                                                 return (
                                                                     <View key={medication.id + '|' + time + '|' + idx} style={style.doseCard}>
                                                                         <View style={[style.doseBadge, { backgroundColor: `${medication.color}20` }]}>
-                                        <Ionicons name="medical" size={24} color={medication.color} />
-                                    </View>
-                                    <View style={style.doseInfo}>
-                                        <View>
-                                            <Text style={style.medicineName}>{medication.name}</Text>
-                                            <Text style={style.doseInfo}>{medication.dosage}</Text>
-                                        </View>
-                                        <View style={style.doseTime}>
-                                            <Ionicons name="time-outline" size={16} color="#ccc" />
+                                                                            <Ionicons name="medical" size={24} color={medication.color} />
+                                                                        </View>
+                                                                        <View style={style.doseInfo}>
+                                                                            <View>
+                                                                                <Text style={style.medicineName}>{medication.name}</Text>
+                                                                                <Text style={style.doseInfo}>{medication.dosage}</Text>
+                                                                            </View>
+                                                                            <View style={style.doseTime}>
+                                                                                <Ionicons name="time-outline" size={16} color="#ccc" />
                                                                                 <Text style={style.timeText}>{time}</Text>
                                                                             </View>
                                                                         </View>
@@ -437,10 +441,10 @@ export default function HomeScreen() {
                                         }
                                         const missed = allEntries
                                             .filter(e => isTimeDoseMissed(e.med, e.time))
-                                            .sort((a,b) => (a.time||'').localeCompare(b.time||''));
+                                            .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
                                         const taken = allEntries
                                             .filter(e => isTimeDoseTaken(e.med.id, e.time))
-                                            .sort((a,b) => (a.time||'').localeCompare(b.time||''));
+                                            .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
                                         return (
                                             <>
                                                 {taken.length > 0 && (
@@ -454,23 +458,23 @@ export default function HomeScreen() {
                                                                 key={'taken|' + entry.med.id + '|' + entry.time + '|' + idx}
                                                                 style={[style.doseCard, { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0', borderWidth: 1, opacity: 1 }]}
                                                             >
-                                                                <View style={[style.doseBadge, { backgroundColor: `${entry.med.color}20` }]}> 
-                                                                    <Ionicons name="medical" size={24} color={entry.med.color} /> 
-                                                                </View> 
-                                                                <View style={style.doseInfo}> 
-                                                                    <View> 
-                                                                        <Text style={[style.medicineName, { color: '#999' }]}>{entry.med.name}</Text> 
-                                                                        <Text style={[style.doseInfo, { color: '#aaa' }]}>{entry.med.dosage}</Text> 
-                                                                    </View> 
-                                                                    <View style={style.doseTime}> 
-                                                                        <Ionicons name="time-outline" size={16} color="#ccc" /> 
-                                                                        <Text style={[style.timeText, { color: '#aaa' }]}>{entry.time}</Text> 
-                                                                    </View> 
-                                                                </View> 
-                                                                <View style={style.takenBadge}> 
-                                                                    <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" /> 
-                                                                    <Text style={style.takenText}>รับประทานแล้ว</Text> 
-                                                                </View> 
+                                                                <View style={[style.doseBadge, { backgroundColor: `${entry.med.color}20` }]}>
+                                                                    <Ionicons name="medical" size={24} color={entry.med.color} />
+                                                                </View>
+                                                                <View style={style.doseInfo}>
+                                                                    <View>
+                                                                        <Text style={[style.medicineName, { color: '#999' }]}>{entry.med.name}</Text>
+                                                                        <Text style={[style.doseInfo, { color: '#aaa' }]}>{entry.med.dosage}</Text>
+                                                                    </View>
+                                                                    <View style={style.doseTime}>
+                                                                        <Ionicons name="time-outline" size={16} color="#ccc" />
+                                                                        <Text style={[style.timeText, { color: '#aaa' }]}>{entry.time}</Text>
+                                                                    </View>
+                                                                </View>
+                                                                <View style={style.takenBadge}>
+                                                                    <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
+                                                                    <Text style={style.takenText}>รับประทานแล้ว</Text>
+                                                                </View>
                                                             </View>
                                                         ))}
                                                     </View>
@@ -492,23 +496,23 @@ export default function HomeScreen() {
                                                                     opacity: 1
                                                                 }]}
                                                             >
-                                                                <View style={[style.doseBadge, { backgroundColor: `${entry.med.color}14` }]}> 
-                                                                    <Ionicons name="medical" size={24} color={entry.med.color} /> 
-                                                                </View> 
-                                                                <View style={style.doseInfo}> 
-                                                                    <View> 
-                                                                        <Text style={[style.medicineName, { color: '#b71c1c' }]}>{entry.med.name}</Text> 
-                                                                        <Text style={[style.doseInfo, { color: '#b71c1c' }]}>{entry.med.dosage}</Text> 
-                                                                    </View> 
-                                                                    <View style={style.doseTime}> 
-                                                                        <Ionicons name="time-outline" size={16} color="#b71c1c" /> 
-                                                                        <Text style={[style.timeText, { color: '#b71c1c' }]}>{entry.time}</Text> 
-                                                                    </View> 
-                                                                </View> 
-                                                                <View style={[style.takenBadge, { backgroundColor: '#fde0e0' }]}> 
-                                                                    <Ionicons name="close-circle-outline" size={24} color="#b71c1c" /> 
-                                                                    <Text style={[style.takenText, { color: '#b71c1c' }]}>ไม่ได้รับประทาน</Text> 
-                                                                </View> 
+                                                                <View style={[style.doseBadge, { backgroundColor: `${entry.med.color}14` }]}>
+                                                                    <Ionicons name="medical" size={24} color={entry.med.color} />
+                                                                </View>
+                                                                <View style={style.doseInfo}>
+                                                                    <View>
+                                                                        <Text style={[style.medicineName, { color: '#b71c1c' }]}>{entry.med.name}</Text>
+                                                                        <Text style={[style.doseInfo, { color: '#b71c1c' }]}>{entry.med.dosage}</Text>
+                                                                    </View>
+                                                                    <View style={style.doseTime}>
+                                                                        <Ionicons name="time-outline" size={16} color="#b71c1c" />
+                                                                        <Text style={[style.timeText, { color: '#b71c1c' }]}>{entry.time}</Text>
+                                                                    </View>
+                                                                </View>
+                                                                <View style={[style.takenBadge, { backgroundColor: '#fde0e0' }]}>
+                                                                    <Ionicons name="close-circle-outline" size={24} color="#b71c1c" />
+                                                                    <Text style={[style.takenText, { color: '#b71c1c' }]}>ไม่ได้รับประทาน</Text>
+                                                                </View>
                                                             </View>
                                                         ))}
                                                     </View>
@@ -852,7 +856,7 @@ const style = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-around',
         alignItems: 'center',
-        height: 60,
+        height: 100,
         backgroundColor: 'white',
         borderTopWidth: 1,
         borderColor: '#eee',
@@ -866,7 +870,8 @@ const style = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 8,
         elevation: 8,
-        marginBottom: 20
+        paddingBottom: 20,
+        // marginBottom: 20
     },
     navItem: {
         flex: 1,

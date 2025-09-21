@@ -391,7 +391,13 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   backIconContainer: {
-    padding: 4,
-    marginRight: 12
+    padding: 12,
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -236,6 +236,10 @@ export async function clearAllData(): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('DELETE FROM medReminds');
     await db.runAsync('DELETE FROM dose_history');
+    
+    // ลบแจ้งเตือนทั้งหมด
+    const { cancelAllNotifications } = await import('./notifications');
+    await cancelAllNotifications();
 }
 
 export async function syncMedRemindsWithBackend() {

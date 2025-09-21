@@ -70,7 +70,7 @@ export default function MedicinesPage() {
         setSelectedMedicine(null);
         setError('');
         
-        //โชว์ทั้งหมดเมื่อว่าง
+        //ซ่อน suggestions เมื่อว่าง แต่ยังแสดงรายการยาทั้งหมด
         if (text.length === 0) {
             setSuggestions([]);
             setShowResults(false);
@@ -78,19 +78,24 @@ export default function MedicinesPage() {
             return;
         }
         
-        setShowResults(false);
         if (text.length > 1) {
             setLoading(true);
             try {
                 const meds = await medicinesAPI.search(text, currentUserId || undefined);
                 setSuggestions(meds);
+                // แสดงผลการค้นหาอัตโนมัติ
+                setResults(meds);
+                setShowResults(true);
             } catch (e: any) {
                 setSuggestions([]);
+                setResults([]);
+                setShowResults(true);
             } finally {
                 setLoading(false);
             }
         } else {
             setSuggestions([]);
+            setShowResults(false);
         }
     };
 
@@ -105,6 +110,26 @@ export default function MedicinesPage() {
         setShowResults(false);
         try {
             const meds = await medicinesAPI.search(search, currentUserId || undefined);
+            setResults(meds);
+            setShowResults(true);
+        } catch (e: any) {
+            setError('Error searching medicines');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearchWithName = async (medicineName: string) => {
+        if (!medicineName.trim()) {
+            await loadAllMedicines();
+            return;
+        }
+        
+        setLoading(true);
+        setError('');
+        setShowResults(false);
+        try {
+            const meds = await medicinesAPI.search(medicineName, currentUserId || undefined);
             setResults(meds);
             setShowResults(true);
         } catch (e: any) {
@@ -147,7 +172,10 @@ export default function MedicinesPage() {
 
     // ฟิลเตอร์รายการยาเฉพาะของผู้ใช้
     const filteredResults = showUserOnly && currentUserId
-        ? results.filter(item => item.userid === currentUserId)
+        ? results.filter(item => {
+            // ตรวจสอบว่า userid มีค่าและตรงกับ currentUserId (แปลงเป็น string)
+            return item.userid && item.userid !== 'null' && item.userid === String(currentUserId);
+        })
         : results;
     return (
         <View style={styles.container}>
@@ -180,6 +208,7 @@ export default function MedicinesPage() {
                                 value={search}
                                 onChangeText={handleInputChange}
                                 onSubmitEditing={handleSearch}
+                                onBlur={() => setSuggestions([])}
                                 returnKeyType="search"
                             />
                             <TouchableOpacity
@@ -196,7 +225,7 @@ export default function MedicinesPage() {
                                     <Ionicons name="search" size={22} color="white" />
                                 </LinearGradient>
                             </TouchableOpacity>
-                            {suggestions.length > 0 && (
+                            {suggestions.length > 0 && search.length > 0 && (
                                 <View style={{
                                     backgroundColor: 'white',
                                     borderRadius: 8,
@@ -208,16 +237,17 @@ export default function MedicinesPage() {
                                     zIndex: 20,
                                     borderWidth: 1,
                                     borderColor: '#e0e0e0',
-                                    maxHeight: 200,
+                                    maxHeight: 'auto',
                                 }}>
                                     {suggestions.map((med) => (
                                         <TouchableOpacity
                                             key={med.id}
-                                            onPress={() => {
+                                            onPress={async () => {
                                                 setSearch(med.medicine_name);
                                                 setSelectedMedicine(med);
                                                 setSuggestions([]);
-                                                handleSearch();
+                                                // ค้นหาด้วยชื่อยาที่เลือก
+                                                await handleSearchWithName(med.medicine_name);
                                             }}
                                             style={{ padding: 10 }}
                                         >

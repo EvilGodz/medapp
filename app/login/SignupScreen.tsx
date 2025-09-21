@@ -31,12 +31,31 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState<boolean>(false);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
   const handleInputChange = (field: keyof SignupFormData, value: string): void => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  // utils: แปลง Date -> 'YYYY-MM-DD' แบบ local
+  const toYMDLocal = (d: Date) => {
+    // กัน DST/ขอบเขตเวลา: ตั้งให้เป็นเที่ยงวันเพื่อลดโอกาสขยับวัน
+    const dd = new Date(d);
+    dd.setHours(12, 0, 0, 0);
+    const y = dd.getFullYear();
+    const m = String(dd.getMonth() + 1).padStart(2, '0');
+    const day = String(dd.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // utils: แปลง 'YYYY-MM-DD' -> Date แบบ local (ไม่ใช้ new Date(string) เพราะจะโดน UTC)
+  const parseYMDLocal = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
   };
 
   const formatDate = (date: Date): string => {
@@ -47,6 +66,11 @@ export default function SignupScreen() {
   };
 
   const formatDateThai = (date: Date): string => {
+    // ตรวจสอบว่า date เป็น valid หรือไม่
+    if (!date || isNaN(date.getTime())) {
+      return 'เลือกวันเกิด';
+    }
+
     const months = [
       'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
       'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
@@ -60,9 +84,9 @@ export default function SignupScreen() {
   };
 
   const handleDateSelect = (date: Date): void => {
-    const formattedDate = formatDate(date);
+    const formattedDate = toYMDLocal(date);   // <-- ใช้ local formatter
     handleInputChange('birth_date', formattedDate);
-    setSelectedDate(date);
+    setSelectedDate(parseYMDLocal(formattedDate)); // sync picker ให้ตรงเป๊ะ
     setShowDatePicker(false);
   };
 
@@ -368,6 +392,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="ex: สมชาย หมายดี"
+              placeholderTextColor="black"
               value={formData.fullname}
               onChangeText={(text) => handleInputChange('fullname', text)}
             />
@@ -378,6 +403,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="ex: som.chai@gmail.com"
+              placeholderTextColor="black"
               value={formData.email}
               onChangeText={(text) => handleInputChange('email', text)}
               keyboardType="email-address"
@@ -387,24 +413,50 @@ export default function SignupScreen() {
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>รหัสผ่าน</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••••"
-              value={formData.password}
-              onChangeText={(text) => handleInputChange('password', text)}
-              secureTextEntry
-            />
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.inputPassword}
+                placeholder="••••••••••"
+                placeholderTextColor="black"
+                value={formData.password}
+                onChangeText={(text) => handleInputChange('password', text)}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye' : 'eye-off'}
+                  size={30}
+                  color="#888"
+                  style={styles.icon}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>ยืนยันรหัสผ่าน</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••••"
-              value={formData.confirmPassword}
-              onChangeText={(text) => handleInputChange('confirmPassword', text)}
-              secureTextEntry
-            />
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.inputPassword}
+                placeholder="••••••••••"
+                placeholderTextColor="black"
+                value={formData.confirmPassword}
+                onChangeText={(text) => handleInputChange('confirmPassword', text)}
+                secureTextEntry={!showConfirmPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? 'eye' : 'eye-off'}
+                  size={30}
+                  color="#888"
+                  style={styles.icon}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
@@ -416,7 +468,7 @@ export default function SignupScreen() {
                 styles.dateInputText,
                 !formData.birth_date && styles.placeholderText
               ]}>
-                {formData.birth_date ? formatDateThai(new Date(formData.birth_date)) : 'เลือกวันเกิด'}
+                {formData.birth_date ? formatDateThai(parseYMDLocal(formData.birth_date)) : 'เลือกวันเกิด'}
               </Text>
               <Text style={styles.dateInputIcon}>📅</Text>
             </TouchableOpacity>
@@ -426,6 +478,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="น้ำหนัก (กก.)"
+              placeholderTextColor="black"
               value={formData.weight}
               onChangeText={(text) => handleInputChange('weight', text)}
               keyboardType="numeric"
@@ -436,6 +489,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="ส่วนสูง (ซม.)"
+              placeholderTextColor="black"
               value={formData.height}
               onChangeText={(text) => handleInputChange('height', text)}
               keyboardType="numeric"
@@ -527,7 +581,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   placeholderText: {
-    color: '#999',
+    color: 'black',
   },
   dateInputIcon: {
     fontSize: 18,
@@ -683,5 +737,30 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3
   },
+  passwordBox: {
+    flexDirection: 'row',
+    alignItems: 'center', 
+  },
+  icon: {
+    marginLeft: 10
+  },
+  inputBox: {
+    flexDirection:'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    width: '100%',
+    borderRadius: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    color: '#333',
+  },
+  inputPassword: {
+    width: '85%',
+    borderRadius: 10,
+    fontSize: 16,
+    color: '#333',
+  }
 }
 )

@@ -505,26 +505,26 @@ export default function addNotificationScreen() {
                                 />
                                 {/* เลือกหน่วย เฉพาะยาน้ำ */}
                                 {dosageType === 'ยาน้ำ' && (
-                                    <>
+                                    <View style={styles.dosageUnitRow}>
                                         <TouchableOpacity
                                             style={[styles.dosageUnitButton, dosageUnit === 'ml' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ml')}
                                         >
-                                            <Text style={{ color: dosageUnit === 'ml' ? 'white' : '#333' }}>ml</Text>
+                                            <Text style={{ color: dosageUnit === 'ml' ? 'white' : '#333' ,textAlign: 'center',}}>ml</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={[styles.dosageUnitButton, dosageUnit === 'ช้อนชา' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ช้อนชา')}
                                         >
-                                            <Text style={{ color: dosageUnit === 'ช้อนชา' ? 'white' : '#333' }}>ช้อนชา</Text>
+                                            <Text style={{ color: dosageUnit === 'ช้อนชา' ? 'white' : '#333' ,textAlign: 'center',}}>ช้อนชา</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={[styles.dosageUnitButton, dosageUnit === 'ช้อนโต๊ะ' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ช้อนโต๊ะ')}
                                         >
-                                            <Text style={{ color: dosageUnit === 'ช้อนโต๊ะ' ? 'white' : '#333' }}>ช้อนโต๊ะ</Text>
+                                            <Text style={{ color: dosageUnit === 'ช้อนโต๊ะ' ? 'white' : '#333' ,textAlign: 'center',}}>ช้อนโต๊ะ</Text>
                                         </TouchableOpacity>
-                                    </>
+                                    </View>
                                 )}
                                 {/* ถ้าเลือกเม็ด/แคปซูล ให้เลือก เม็ด หรือ ครึ่งเม็ด */}
                                 {dosageType === 'เม็ด' && (
@@ -533,13 +533,13 @@ export default function addNotificationScreen() {
                                         style={[styles.dosageUnitButton, tabletType === 'เม็ด' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                         onPress={() => setTabletType('เม็ด')}
                                     >
-                                        <Text style={{ color: tabletType === 'เม็ด' ? 'white' : '#333' }}>เม็ด</Text>
+                                        <Text style={{ color: tabletType === 'เม็ด' ? 'white' : '#333' ,textAlign: 'center',}}>เม็ด</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={[styles.dosageUnitButton, tabletType === 'ครึ่งเม็ด' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                         onPress={() => setTabletType('ครึ่งเม็ด')}
                                     >
-                                        <Text style={{ color: tabletType === 'ครึ่งเม็ด' ? 'white' : '#333' }}>ครึ่งเม็ด</Text>
+                                        <Text style={{ color: tabletType === 'ครึ่งเม็ด' ? 'white' : '#333' ,textAlign: 'center',}}>ครึ่งเม็ด</Text>
                                     </TouchableOpacity>
                                 </View>
                                 )}
@@ -1073,18 +1073,20 @@ const styles = StyleSheet.create({
         backgroundColor: '#e0e0e0',
     },
     dosageUnitRow: {
-        flexDirection: 'row',
+        flexDirection: 'column',
         alignItems: 'center',
         marginBottom: 8,
     },
     dosageUnitButton: {
+        textAlign: 'center',
+        width: '100%',
         borderRadius: 8,
         paddingHorizontal: 10,
         paddingVertical: 6,
         marginLeft: 6,
     },
-    dosageUnitButtonActive: { backgroundColor: '#1a8e2d' },
-    dosageUnitButtonInactive: { backgroundColor: '#e0e0e0' },
+    dosageUnitButtonActive: { backgroundColor: '#1a8e2d' ,textAlign: 'center',},
+    dosageUnitButtonInactive: { backgroundColor: '#f8f9fa' ,textAlign: 'center',},
     tabletTypeRow: {
         flexDirection: 'row',
         alignItems: 'center',

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export interface NotificationSettings {
   sound: boolean;
@@ -70,6 +70,8 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
 
   return (
     <>
+      <SafeAreaView style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backIconContainer}>
@@ -118,9 +120,6 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
                 trackColor={{ false: '#ddd', true: '#1a8e2d' }}
                 thumbColor={Platform.OS === 'android' ? (editData.showImage ? '#1a8e2d' : '#f4f3f4') : ''}
               />
-              {editData.showImage && (
-                <Image source={require('../../assets/images/icon.png')} style={styles.icon} />
-              )}
             </View>
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -141,6 +140,8 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
           </View>
         </View>
       </Modal>
+      </ScrollView>
+      </SafeAreaView>
     </>
   );
 };
@@ -261,8 +262,18 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   backIconContainer: {
-    padding: 4,
-    marginRight: 12
+    padding: 12,
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB'
   },
 });
 

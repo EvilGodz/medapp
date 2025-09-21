@@ -25,6 +25,8 @@ interface User {
   birth_date?: string;
   weight?: number;
   height?: number;
+  gender?: string;
+  phone?: string;
   email_verified: boolean;
   created_at: string;
 }
@@ -197,6 +199,18 @@ const ProfileScreen = () => {
     }
   };
 
+  const formatPhoneNumber = (phone: string) => {
+    if (!phone) return '-';
+    // Remove all non-digit characters
+    const cleaned = phone.replace(/\D/g, '');
+    // Format as xxx-xxx-xxxx
+    if (cleaned.length === 10) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+    }
+    // If not 10 digits, return as is
+    return phone;
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -260,7 +274,7 @@ const ProfileScreen = () => {
         </View>
 
         {/* Additional Info Card */}
-        {(userData.birth_date || userData.weight || userData.height) && (
+        {(userData.birth_date || userData.weight || userData.height || userData.gender || userData.phone) && (
           <View style={styles.infoCard}>
             <Text style={styles.infoCardTitle}>ข้อมูลส่วนตัว</Text>
             {userData.birth_date && (
@@ -274,16 +288,26 @@ const ProfileScreen = () => {
               <View style={styles.infoRow}>
                 <Ionicons name="fitness-outline" size={20} color="#6B7280" />
                 <Text style={styles.infoLabel}>น้ำหนัก:</Text>
-                <Text style={styles.infoValue}>{userData.weight} kg</Text>
+                <Text style={styles.infoValue}>{userData.weight} กก.</Text>
               </View>
             )}
             {userData.height && (
               <View style={styles.infoRow}>
                 <Ionicons name="resize-outline" size={20} color="#6B7280" />
                 <Text style={styles.infoLabel}>ส่วนสูง:</Text>
-                <Text style={styles.infoValue}>{userData.height} cm</Text>
+                <Text style={styles.infoValue}>{userData.height} ซม.</Text>
               </View>
             )}
+            <View style={styles.infoRow}>
+              <Ionicons name="person-outline" size={20} color="#6B7280" />
+              <Text style={styles.infoLabel}>เพศ:</Text>
+              <Text style={styles.infoValue}>{userData.gender || '-'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Ionicons name="call-outline" size={20} color="#6B7280" />
+              <Text style={styles.infoLabel}>เบอร์โทรศัพท์:</Text>
+              <Text style={styles.infoValue}>{formatPhoneNumber(userData.phone || '')}</Text>
+            </View>
           </View>
         )}
 
@@ -417,8 +441,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   backIconContainer: {
-    padding: 4,
-    marginRight: 12
+    padding: 12,
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
