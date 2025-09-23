@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "629811867999",
+    "project_id": "mecore-cacc6",
+    "storage_bucket": "mecore-cacc6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:629811867999:android:21932189d454f46d7a46ea",
+        "android_client_info": {
+          "package_name": "com.evilgodz.medApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBpLbyT-qro1u_v8zwri35A-AhzgBnPVnA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

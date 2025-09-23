@@ -89,14 +89,15 @@ export default function AddMedicineScreen() {
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>ประเภท</Text>
-            <View style={{ borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, backgroundColor: 'gray' }}>
+            <View style={{ borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, backgroundColor: 'white' }}>
               <Picker
                 selectedValue={medicineCategory}
                 onValueChange={v => setMedicineCategory(v)}
                 style={{ height: 50 }}
+                itemStyle={{ color: 'gray', padding: 14}}
               >
-                <Picker.Item label="เม็ด" value="เม็ด" />
-                <Picker.Item label="น้ำ" value="น้ำ" />
+                <Picker.Item label="เม็ด" value="เม็ด" color="gray" />
+                <Picker.Item label="น้ำ" value="น้ำ" color="gray" />
               </Picker>
             </View>
           </View>

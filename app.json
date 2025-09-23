@@ -4,6 +4,12 @@
     "slug": "medApp",
     "version": "1.0.0",
     "scheme": "medapp",
+    "icon": "./assets/images/logomedicine-app.png",
+    "splash": {
+      "image": "./assets/images/logomedicine-app.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "web": {
       "bundler": "metro",
       "output": "static",
