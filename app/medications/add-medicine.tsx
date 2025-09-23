@@ -74,7 +74,7 @@ export default function AddMedicineScreen() {
               value={medicine_name}
               onChangeText={setMedicineName}
               placeholder="ชื่อยา"
-              placeholderTextColor="#aaa"
+              placeholderTextColor="gray"
             />
           </View>
           <View style={styles.inputGroup}>
@@ -84,12 +84,12 @@ export default function AddMedicineScreen() {
               value={dosage}
               onChangeText={setDosage}
               placeholder="ขนาดยา (เช่น 500mg)"
-              placeholderTextColor="#aaa"
+              placeholderTextColor="gray"
             />
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>ประเภท</Text>
-            <View style={{ borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, backgroundColor: '#fafafa' }}>
+            <View style={{ borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, backgroundColor: 'gray' }}>
               <Picker
                 selectedValue={medicineCategory}
                 onValueChange={v => setMedicineCategory(v)}
@@ -107,7 +107,7 @@ export default function AddMedicineScreen() {
               value={section_4_precautions}
               onChangeText={setSection4Precautions}
               placeholder="หมายเหตุ (เช่น ห้ามใช้ร่วมกับยาอื่น)"
-              placeholderTextColor="#aaa"
+              placeholderTextColor="gray"
             />
           </View>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}

@@ -392,7 +392,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="ex: สมชาย หมายดี"
-              placeholderTextColor="black"
+              placeholderTextColor="gray"
               value={formData.fullname}
               onChangeText={(text) => handleInputChange('fullname', text)}
             />
@@ -403,7 +403,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="ex: som.chai@gmail.com"
-              placeholderTextColor="black"
+              placeholderTextColor="gray"
               value={formData.email}
               onChangeText={(text) => handleInputChange('email', text)}
               keyboardType="email-address"
@@ -416,8 +416,6 @@ export default function SignupScreen() {
             <View style={styles.inputBox}>
               <TextInput
                 style={styles.inputPassword}
-                placeholder="••••••••••"
-                placeholderTextColor="black"
                 value={formData.password}
                 onChangeText={(text) => handleInputChange('password', text)}
                 secureTextEntry={!showPassword}
@@ -440,8 +438,6 @@ export default function SignupScreen() {
             <View style={styles.inputBox}>
               <TextInput
                 style={styles.inputPassword}
-                placeholder="••••••••••"
-                placeholderTextColor="black"
                 value={formData.confirmPassword}
                 onChangeText={(text) => handleInputChange('confirmPassword', text)}
                 secureTextEntry={!showConfirmPassword}
@@ -478,7 +474,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="น้ำหนัก (กก.)"
-              placeholderTextColor="black"
+              placeholderTextColor="gray"
               value={formData.weight}
               onChangeText={(text) => handleInputChange('weight', text)}
               keyboardType="numeric"
@@ -489,7 +485,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="ส่วนสูง (ซม.)"
-              placeholderTextColor="black"
+              placeholderTextColor="gray"
               value={formData.height}
               onChangeText={(text) => handleInputChange('height', text)}
               keyboardType="numeric"

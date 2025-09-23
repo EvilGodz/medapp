@@ -556,7 +556,7 @@ const MyProfileScreen = () => {
                 value={editedData.fullname}
                 onChangeText={(text) => setEditedData({ ...editedData, fullname: text })}
                 placeholder="กรอกชื่อ-นามสกุล"
-                placeholderTextColor="black"
+                placeholderTextColor="gray"
               />
             </View>
 
@@ -639,11 +639,9 @@ const MyProfileScreen = () => {
                 </TouchableOpacity>
               </View>
             </View>
-
-            {/* Contact Detail Section */}
+{/* 
             <Text style={[styles.sectionTitle, { marginTop: 30 }]}>ข้อมูลติดต่อ</Text>
             
-            {/* Mobile Number */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>เบอร์โทรศัพท์</Text>
               <TextInput
@@ -654,14 +652,14 @@ const MyProfileScreen = () => {
                 value={editedData.phone}
                 onChangeText={handlePhoneChange}
                 placeholder="กรอกเบอร์โทรศัพท์ 10 หลัก"
-                placeholderTextColor="black"
+                placeholderTextColor="gray"
                 keyboardType="phone-pad"
                 maxLength={10}
               />
               {phoneError ? (
                 <Text style={styles.errorText}>{phoneError}</Text>
               ) : null}
-            </View>
+            </View> */}
 
             {/* Health Information Section */}
             <Text style={[styles.sectionTitle, { marginTop: 30 }]}>ข้อมูลสุขภาพ</Text>
@@ -675,7 +673,7 @@ const MyProfileScreen = () => {
                   value={editedData.weight?.toString() || ''}
                   onChangeText={(text) => setEditedData({ ...editedData, weight: text ? parseFloat(text) : undefined })}
                   placeholder="น้ำหนัก"
-                  placeholderTextColor="black"
+                  placeholderTextColor="gray"
                   keyboardType="numeric"
                 />
               </View>
@@ -687,7 +685,7 @@ const MyProfileScreen = () => {
                   value={editedData.height?.toString() || ''}
                   onChangeText={(text) => setEditedData({ ...editedData, height: text ? parseFloat(text) : undefined })}
                   placeholder="ส่วนสูง"
-                  placeholderTextColor="black"
+                  placeholderTextColor="gray"
                   keyboardType="numeric"
                 />
               </View>

@@ -64,10 +64,10 @@ const HomeScreen: React.FC = () => {
         },
         {
           text: 'ออกจากระบบ',
-          onPress: async () => {
+            onPress: async () => {
             await AsyncStorage.removeItem('token');
             await AsyncStorage.removeItem('user');
-            router.replace('/test/LoginScreen');
+            router.replace('/login/LoginScreen');
           },
         },
       ]

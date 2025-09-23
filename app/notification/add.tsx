@@ -1,12 +1,12 @@
 import { getApiBaseUrl } from "@/utils/env";
-import { scheduleMedicationReminder } from "@/utils/notifications";
+import { registerForPushNotificationsAsync, scheduleMedicationReminder } from "@/utils/notifications";
 import { addMedRemind, addMedRemindToApi } from "@/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Dimensions, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -59,6 +59,19 @@ const DURATIONS = [
 ];
 
 export default function addNotificationScreen() {
+
+    // Request notification permission on screen mount to ensure user is prompted early
+    useEffect(() => {
+        (async () => {
+            if (Platform.OS === 'android') {
+                try {
+                    await registerForPushNotificationsAsync();
+                } catch (e) {
+                    console.warn('Failed to request notification permission on mount', e);
+                }
+            }
+        })();
+    }, []);
 
     const [form, setForm] = useState({
         name: "",
@@ -383,6 +396,10 @@ export default function addNotificationScreen() {
             // Schedule notification (local only, do not queue in outbox)
             let scheduled = false;
             try {
+                        // Ensure runtime notification permission (Android 13+)
+                        if (Platform.OS === 'android') {
+                            await registerForPushNotificationsAsync();
+                        }
                 if (notificationData.reminderEnabled) {
                     await Promise.race([
                         scheduleMedicationReminder(notificationData),
@@ -448,7 +465,7 @@ export default function addNotificationScreen() {
                             <TextInput
                                 style={[styles.mainInput, styles.inputContainer, errors.name && styles.inputError]}
                                 placeholder="ชื่อยา"
-                                placeholderTextColor={'#999'}
+                                placeholderTextColor={'gray'}
                                 value={form.name}
                                 onChangeText={async (text) => {
                                     setForm({ ...form, name: text });
@@ -493,7 +510,7 @@ export default function addNotificationScreen() {
                                 <TextInput
                                     style={[styles.mainInput, styles.inputContainer, errors.dosage && styles.inputError, { flex: 1 }]}
                                     placeholder={dosageType === 'ยาน้ำ' ? `ขนาดยา (${dosageUnit})` : 'ขนาดยา (เช่น 1 เม็ด)'}
-                                    placeholderTextColor={'#999'}
+                                    placeholderTextColor={'gray'}
                                     value={form.dosage}
                                     keyboardType={dosageType === 'ยาน้ำ' ? 'numeric' : 'default'}
                                     onChangeText={(text) => {

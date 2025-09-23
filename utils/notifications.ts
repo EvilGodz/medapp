@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notification from "expo-notifications";
-import { Platform } from "react-native";
+import { NativeModules, Platform } from 'react-native';
 import { MedRemind } from "./storage";
 
 Notification.setNotificationHandler({
@@ -120,13 +120,33 @@ export async function scheduleMedicationReminder(
         // Prevent duplicate scheduling
         if (scheduledTimes.has(notificationDate.getTime())) continue;
 
+        console.log('Scheduling notification for', medication.name, notificationDate.toString());
+        // On Android prefer native exact alarms for precision
+        if (Platform.OS === 'android' && (NativeModules as any).AlarmModule && (NativeModules as any).AlarmModule.scheduleExactAlarm) {
+          try {
+            const alarmId = `${medication.id}_${notificationDate.getTime()}`;
+            await (NativeModules as any).AlarmModule.scheduleExactAlarm(alarmId, notificationDate.getTime(), "Medication Reminder", `อย่าลืมทาน ${medication.name} (${medication.dosage})`);
+            continue;
+          } catch (e) {
+            console.warn('Native exact alarm failed, falling back to Expo for', medication.name, e);
+          }
+        }
+
         await Notification.scheduleNotificationAsync({
           content: {
             title: "Medication Reminder",
             body: `อย่าลืมทาน ${medication.name} (${medication.dosage})`,
             data: { medicationId: medication.id },
-            sound: notificationSettings.sound ? undefined : null, // undefined = use default, null = no sound
-            vibrate: notificationSettings.vibrate ? undefined : [], // undefined = use default, [] = no vibrate
+      // ensure android channel is set
+      ...(Platform.OS === 'android' && { channelId: 'default' }),
+      // platform-specific control for sound/vibrate
+      ...(Platform.OS === 'android' ? {
+        sound: notificationSettings.sound ? 'default' : undefined,
+        // Android vibration pattern is set via channel; handled in registerForPushNotificationsAsync
+      } : {}),
+      ...(Platform.OS === 'ios' ? {
+        sound: notificationSettings.sound ? 'default' : undefined,
+      } : {}),
             // showImage: custom logic below
             ...(notificationSettings.showImage && {
               // You can use local image or remote url here
@@ -148,7 +168,7 @@ export async function scheduleMedicationReminder(
             type: Notification.SchedulableTriggerInputTypes.DATE,
             date: notificationDate,
           },
-        });
+  });
       }
     }
     return "scheduled";
@@ -173,6 +193,18 @@ export async function cancelMedicationReminders(
           await Notification.cancelScheduledNotificationAsync(
             notification.identifier
           );
+        }
+      }
+      // Also cancel native exact alarms for this medication
+      if (Platform.OS === 'android' && (NativeModules as any).AlarmModule && (NativeModules as any).AlarmModule.cancelExactAlarm) {
+        // We persisted IDs as `${medication.id}_${timestamp}`; scan prefs via native side if implemented else try best-effort
+        // Best-effort: cancel alarms within next 48 hours for this medication
+        const now = Date.now();
+        const twoDays = now + 48 * 60 * 60 * 1000;
+        // Try many times for safety — native side ideally exposes a query; for now only attempt likely IDs
+        for (let t = now; t <= twoDays; t += 60 * 60 * 1000) {
+          const id = `${medicationId}_${t}`;
+          try { (NativeModules as any).AlarmModule.cancelExactAlarm(id); } catch {};
         }
       }
     } catch (error) {

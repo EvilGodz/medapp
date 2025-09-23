@@ -130,8 +130,8 @@ const ProfileScreen = () => {
       if (error.message === 'UNAUTHORIZED') {
         // Token expired or invalid, redirect to login
         Alert.alert(
-          'Session Expired',
-          'Please login again',
+          'Session หมดอายุ',
+          'กรุณาเข้าสู่ระบบอีกครั้ง',
           [{ text: 'OK', onPress: () => router.replace('/login/LoginScreen') }]
         );
         return;
@@ -144,7 +144,7 @@ const ProfileScreen = () => {
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
+    Alert.alert('Logout', 'คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
@@ -155,11 +155,11 @@ const ProfileScreen = () => {
             if (success) {
               router.replace('/login/LoginScreen');
             } else {
-              Alert.alert('Error', 'Logout failed. Please try again.');
+              Alert.alert('เกิดข้อผิดพลาด', 'ออกจากระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
             }
           } catch (error) {
             console.error('Logout error:', error);
-            Alert.alert('Error', 'An error occurred during logout.');
+            Alert.alert('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดระหว่างการออกจากระบบ');
           }
         },
       },
@@ -209,6 +209,25 @@ const ProfileScreen = () => {
     }
     // If not 10 digits, return as is
     return phone;
+  };
+
+  const computeBmi = (weight?: number, height?: number) => {
+    // weight in kg, height in cm
+    if (!weight || !height) {
+      return { bmi: null as null | number, bmiDisplay: '-', category: 'ไม่มีข้อมูล' };
+    }
+    const h = height / 100; // meters
+    if (h <= 0) {
+      return { bmi: null as null | number, bmiDisplay: '-', category: 'ไม่มีข้อมูล' };
+    }
+    const raw = weight / (h * h);
+    const rounded = Math.round(raw * 10) / 10;
+    let category = '';
+    if (rounded < 18.5) category = 'ผอม';
+    else if (rounded < 25) category = 'ปกติ';
+    else if (rounded < 30) category = 'น้ำหนักเกิน';
+    else category = 'อ้วน';
+    return { bmi: rounded, bmiDisplay: rounded.toFixed(1), category };
   };
 
   // Loading state
@@ -298,16 +317,30 @@ const ProfileScreen = () => {
                 <Text style={styles.infoValue}>{userData.height} ซม.</Text>
               </View>
             )}
+            {(userData.weight || userData.height) && (
+              (() => {
+                const { bmi, bmiDisplay, category } = computeBmi(userData.weight, userData.height);
+                return (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="fitness-outline" size={20} color="#6B7280" />
+                    <Text style={styles.infoLabel}>BMI:</Text>
+                    <Text style={styles.infoValue}>
+                      {bmi !== null ? `${bmiDisplay} (${category})` : 'ไม่เพียงพอข้อมูล'}
+                    </Text>
+                  </View>
+                );
+              })()
+            )}
             <View style={styles.infoRow}>
               <Ionicons name="person-outline" size={20} color="#6B7280" />
               <Text style={styles.infoLabel}>เพศ:</Text>
               <Text style={styles.infoValue}>{userData.gender || '-'}</Text>
             </View>
-            <View style={styles.infoRow}>
+            {/* <View style={styles.infoRow}>
               <Ionicons name="call-outline" size={20} color="#6B7280" />
               <Text style={styles.infoLabel}>เบอร์โทรศัพท์:</Text>
               <Text style={styles.infoValue}>{formatPhoneNumber(userData.phone || '')}</Text>
-            </View>
+            </View> */}
           </View>
         )}
 

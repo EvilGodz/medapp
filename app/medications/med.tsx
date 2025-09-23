@@ -204,7 +204,7 @@ export default function MedicinesPage() {
                             <TextInput
                                 style={styles.mainInput}
                                 placeholder="ชื่อยา"
-                                placeholderTextColor={'#999'}
+                                placeholderTextColor={'gray'}
                                 value={search}
                                 onChangeText={handleInputChange}
                                 onSubmitEditing={handleSearch}
@@ -282,6 +282,9 @@ export default function MedicinesPage() {
                                     filteredResults.map((item) => (
                                         <View key={item.id} style={styles.resultCard}>
                                             <Text style={styles.resultName}>{item.medicine_name}</Text>
+                                            {item.medicine_category && (
+                                                <Text style={styles.resultDetail}>ชนิดยา: {item.medicine_category}</Text>
+                                            )}
                                             {item.section_3_1_dosage && (
                                                 <Text style={styles.resultDetail}>ขนาดยา: {item.section_3_1_dosage}</Text>
                                             )}

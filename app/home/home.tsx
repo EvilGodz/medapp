@@ -9,7 +9,6 @@ import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Animated, AppState, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
-import { initDatabase } from "../../utils/database";
 
 const { width } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -167,13 +166,10 @@ export default function HomeScreen() {
     useEffect(() => {
         const initializeApp = async () => {
             try {
-                await initDatabase();
-                console.log(' Database init');
-
                 await loadMedications();
                 await setupNotifications();
             } catch (error) {
-                console.error(' Error init app:', error);
+                console.error('Error init app:', error);
             }
         };
 

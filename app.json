@@ -3,41 +3,12 @@
     "name": "MeCoRe",
     "slug": "medApp",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/logomedicine-app.png",
     "scheme": "medapp",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logomedicine-app.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.evilgodz.medApp"
-    },
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/logomedicine-app.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      "expo-sqlite",
-      "expo-web-browser"
-    ],
     "experiments": {
       "typedRoutes": true
     },
@@ -47,6 +18,9 @@
       "eas": {
         "projectId": "859137ec-a4a0-468b-942c-584e1ee9e009"
       }
+    },
+    "android": {
+      "package": "com.evilgodz.medApp"
     }
   }
 }

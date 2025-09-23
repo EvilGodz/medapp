@@ -77,7 +77,7 @@ export default function EditMedicineScreen() {
               value={medicine_name}
               onChangeText={setMedicineName}
               placeholder="ชื่อยา"
-              placeholderTextColor="#aaa"
+              placeholderTextColor="gray"
             />
           </View>
           <View style={styles.inputGroup}>
@@ -87,7 +87,7 @@ export default function EditMedicineScreen() {
               value={dosage}
               onChangeText={setDosage}
               placeholder="ขนาดยา (เช่น 500mg)"
-              placeholderTextColor="#aaa"
+              placeholderTextColor="gray"
             />
           </View>
           <View style={styles.inputGroup}>
@@ -110,7 +110,7 @@ export default function EditMedicineScreen() {
               value={section_4_precautions}
               onChangeText={setSection4Precautions}
               placeholder="หมายเหตุ (เช่น ห้ามใช้ร่วมกับยาอื่น)"
-              placeholderTextColor="#aaa"
+              placeholderTextColor="gray"
             />
           </View>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
