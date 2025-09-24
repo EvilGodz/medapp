@@ -24,11 +24,11 @@ export default function AuthScreen() {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                // 1. Initialize database first
+                // init db
                 await initDatabase();
                 console.log('Database initialized');
 
-                // 2. Check authentication
+                // 2. check auth
                 const token = await AsyncStorage.getItem('token');
                 const user = await AsyncStorage.getItem('user');
                 if (!token || !user) {
@@ -36,11 +36,11 @@ export default function AuthScreen() {
                     return;
                 }
 
-                // 3. Sync from backend (may clear local DB)
+                // 3. sync from backend (clear localdb)
                 await syncMedRemindsWithBackend();
                 await syncDoseHistoryWithBackend();
 
-                // 4. Process outboxes (restore offline data and sync to API)
+                // 4. outbox
                 await processNotificationOutbox(addMedRemind, scheduleMedicationReminder);
                 await processDoseOutbox(recordDose);
                 await processMedRemindUpdateOutbox(updateMedRemind);
@@ -48,7 +48,6 @@ export default function AuthScreen() {
 
             } catch (error) {
                 console.error('Error in auth initialization:', error);
-                // You may want to show an error message to the user here
             }
         };
         checkAuth();
@@ -78,14 +77,14 @@ export default function AuthScreen() {
                 disableDeviceFallback: false,
             });
             if(auth.success){
-                // Process outboxes after successful auth
+                // outbox
                 await processNotificationOutbox(addMedRemind, scheduleMedicationReminder);
                 await processDoseOutbox(recordDose);
                 await processMedRemindUpdateOutbox(updateMedRemind);
                 await processMedRemindDeleteOutbox(deleteMedRemind);
                 router.replace("/home/home");
             }else{
-                setError('Authentication Failed: Please Try again');
+                setError('ยืนยันตัวตนไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
                 setIsAuthenticating(false);
             }
 

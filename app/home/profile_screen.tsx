@@ -1,4 +1,3 @@
-// ProfileScreen.tsx - Updated to fetch data from backend API
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -17,7 +16,6 @@ import {
 import { getApiBaseUrl } from '@/utils/env';
 const API_BASE_URL = getApiBaseUrl();
 
-// User Interface based on backend User model
 interface User {
   id: number;
   fullname: string;
@@ -39,9 +37,7 @@ interface ApiResponse {
   message?: string;
 }
 
-// API Service for user data
 const AuthService = {
-  // Get user profile using the existing /api/auth/profile endpoint
   getProfile: async (): Promise<User> => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -49,7 +45,6 @@ const AuthService = {
         throw new Error('No authentication token found');
       }
 
-      // Add 2-second timeout to fetch
       const fetchWithTimeout = (url: string, options: any, timeout = 2000) => {
         return Promise.race([
           fetch(url, options),
@@ -77,11 +72,11 @@ const AuthService = {
         throw new Error('Invalid response format');
       }
 
-      // Save to cache for offline use
+      // save to cache
       await AsyncStorage.setItem('user', JSON.stringify(data.data.user));
       return data.data.user;
     } catch (error) {
-      // Try to load from cache if fetch fails
+      // load from cache
       console.error('Error fetching profile, trying offline cache:', error);
       const cachedUser = await AsyncStorage.getItem('user');
       if (cachedUser) {
@@ -93,9 +88,8 @@ const AuthService = {
 
   logout: async (): Promise<boolean> => {
     try {
-      // Clear local storage
+      // clear local db
       await AsyncStorage.multiRemove(['token', 'user']);
-      // Clear SQLite data
       const { clearAllData } = await import('@/utils/storage');
       await clearAllData();
       return true;
@@ -128,7 +122,7 @@ const ProfileScreen = () => {
       console.error('Error loading user data:', error);
 
       if (error.message === 'UNAUTHORIZED') {
-        // Token expired or invalid, redirect to login
+        // token expire
         Alert.alert(
           'Session หมดอายุ',
           'กรุณาเข้าสู่ระบบอีกครั้ง',
@@ -171,7 +165,6 @@ const ProfileScreen = () => {
   };
 
   const handleNotifications = () => {
-    // Navigate to notifications (if implemented)
     router.push('/notification/notifications-manage');
   };
 
@@ -201,22 +194,18 @@ const ProfileScreen = () => {
 
   const formatPhoneNumber = (phone: string) => {
     if (!phone) return '-';
-    // Remove all non-digit characters
     const cleaned = phone.replace(/\D/g, '');
-    // Format as xxx-xxx-xxxx
     if (cleaned.length === 10) {
       return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
     }
-    // If not 10 digits, return as is
     return phone;
   };
 
   const computeBmi = (weight?: number, height?: number) => {
-    // weight in kg, height in cm
     if (!weight || !height) {
       return { bmi: null as null | number, bmiDisplay: '-', category: 'ไม่มีข้อมูล' };
     }
-    const h = height / 100; // meters
+    const h = height / 100;
     if (h <= 0) {
       return { bmi: null as null | number, bmiDisplay: '-', category: 'ไม่มีข้อมูล' };
     }
@@ -230,7 +219,7 @@ const ProfileScreen = () => {
     return { bmi: rounded, bmiDisplay: rounded.toFixed(1), category };
   };
 
-  // Loading state
+  // loading
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, styles.centerContent]}>
@@ -240,7 +229,7 @@ const ProfileScreen = () => {
     );
   }
 
-  // Error state
+  // error
   if (error || !userData) {
     return (
       <SafeAreaView style={[styles.container, styles.centerContent]}>
@@ -263,7 +252,7 @@ const ProfileScreen = () => {
     );
   }
 
-  // Success state
+  // success
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -361,7 +350,7 @@ const ProfileScreen = () => {
             <View style={styles.menuIconContainer}>
               <Ionicons name="notifications-outline" size={20} color="#6B7280" />
             </View>
-            <Text style={styles.menuText}>Notifications</Text>
+            <Text style={styles.menuText}>จัดการการแจ้งเตือน</Text>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 

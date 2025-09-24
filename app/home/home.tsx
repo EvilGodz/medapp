@@ -101,7 +101,7 @@ export default function HomeScreen() {
             setDoseHistory(todayDoses);
             setMedications(allMedications);
 
-            // Determine which meds are scheduled for today using occurrence + dayFrequency
+            // check today med
             const today = new Date();
             const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const todayMeds = allMedications.filter((med) => {
@@ -120,7 +120,7 @@ export default function HomeScreen() {
                 return occurrenceIndex >= 0 && occurrenceIndex < occurrenceCount;
             });
 
-            // Sort meds by earliest time asc
+            // sort by time
             todayMeds.sort((a, b) => {
                 const ta = (a.times?.[0] || '23:59');
                 const tb = (b.times?.[0] || '23:59');
@@ -214,7 +214,7 @@ export default function HomeScreen() {
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout recording dose')), 1000))
                 ]);
             } catch (error) {
-                // If offline or failed, queue in outbox
+                // outbox
                 await addToDoseOutbox({
                     medRemindId: medRemind.id,
                     taken: true,
@@ -224,7 +224,7 @@ export default function HomeScreen() {
             }
             await loadMedications();
         } catch (error) {
-            Alert.alert("Error", "Failed to record dose. Please try again.");
+            Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกการรับประทานยาได้ กรุณาลองใหม่อีกครั้ง");
         }
     };
     const today = new Date().toDateString();
@@ -357,7 +357,7 @@ export default function HomeScreen() {
                                     entries.push({ med: med, time: '—' });
                                 }
                             }
-                            // Group by period first
+                            // group by period
                             const byPeriod: Record<string, Entry[]> = {};
                             for (const e of entries) {
                                 const period = classifyPeriod(e.time);
@@ -365,7 +365,6 @@ export default function HomeScreen() {
                                 byPeriod[period].push(e);
                             }
                             const periodOrder = ['เช้า', 'กลางวัน', 'เย็น', 'ก่อนนอน'];
-                            // Build final UI: Period groups (pending only), then global 'รับประทานแล้ว' and 'พลาด'
                             return (
                                 <>
                                     {periodOrder.filter(p => byPeriod[p]?.length).map((period) => {
@@ -375,7 +374,6 @@ export default function HomeScreen() {
                                             if (!mealGroups[meal]) mealGroups[meal] = [];
                                             mealGroups[meal].push(e);
                                         }
-                                        // compute total pending in this period
                                         const totalPendingInPeriod = ['ก่อนอาหาร', 'หลังอาหาร', 'ระหว่างอาหาร', 'หลังอาหารทันที', 'ไม่ระบุ', ''].reduce((acc, meal) => {
                                             const list = (mealGroups[meal] || []).slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
                                             const pending = list.filter(e => !isTimeDoseTaken(e.med.id, e.time) && !isTimeDoseMissed(e.med, e.time));
@@ -430,7 +428,7 @@ export default function HomeScreen() {
                                     })}
 
                                     {(() => {
-                                        // Global Missed and Taken groups
+                                        // miss and taken group
                                         const allEntries: Entry[] = [];
                                         for (const p of periodOrder) {
                                             for (const e of byPeriod[p] || []) allEntries.push(e);
@@ -867,7 +865,6 @@ const style = StyleSheet.create({
         shadowRadius: 8,
         elevation: 8,
         paddingBottom: 20,
-        // marginBottom: 20
     },
     navItem: {
         flex: 1,

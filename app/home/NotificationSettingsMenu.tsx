@@ -24,7 +24,7 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
   const [submitting, setSubmitting] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  // Load settings from AsyncStorage on mount
+  // load setting from AsyncStorage
   useEffect(() => {
     (async () => {
       try {
@@ -183,7 +183,6 @@ const styles = StyleSheet.create({
     height: 32,
     marginLeft: 10,
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',

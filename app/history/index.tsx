@@ -226,7 +226,7 @@ export default function HistoryScreen() {
                   />
                   <View style={styles.medicationInfo}>
                     <Text style={styles.medicationName}>
-                      {dose.medRemind?.name || "Unknown Medication"}
+                      {dose.medRemind?.name || "ไม่ระบุชื่อยา"}
                     </Text>
                     <Text style={styles.medicationDosage}>
                       {dose.medRemind?.dosage}

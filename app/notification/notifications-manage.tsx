@@ -51,13 +51,13 @@ export default function NotificationsManagerScreen() {
       {
         text: 'ลบ', style: 'destructive', onPress: async () => {
           try {
-            // 1s timeout for delete
+            // 1s delete timeout
             await Promise.race([
               deleteMedRemind(id),
               new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout deleting')), 1000))
             ]);
           } catch (e) {
-            // If offline or failed, queue in outbox
+            //queue in outbox if fail
             await addToMedRemindDeleteOutbox(id);
           }
           loadNotifications();
@@ -66,7 +66,6 @@ export default function NotificationsManagerScreen() {
     ]);
   };
 
-  // In-place edit modal logic
   const handleEdit = (id: string) => {
     const med = notifications.find((n) => n.id === id);
     if (med) {
@@ -79,9 +78,9 @@ export default function NotificationsManagerScreen() {
     if (!editData) return;
     setEditSubmitting(true);
     try {
-      // Update local DB immediately for UX
+      // update localdb
       await updateMedRemind(editData.id, editData);
-      // Try to sync to backend, queue to outbox if fails (1s timeout)
+      // sync or outbox if fail
       let apiSynced = false;
       try {
         await Promise.race([
@@ -111,15 +110,15 @@ export default function NotificationsManagerScreen() {
 
   const handleToggleReminder = async (item: any) => {
     const newValue = item.reminderEnabled ? 0 : 1;
-    // Update local DB immediately for UX
+    // update localdb
     await toggleMedRemindEnabled(item.id, !!newValue);
-    // Try to sync to backend, queue to toggle outbox if fails (1s timeout)
+    // sync or outbox if fail
     try {
       await Promise.race([
         medRemindAPI.toggle(item.id, newValue),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout updating')), 1000))
       ]);
-      // Wait 500ms to ensure API call is sent before UI refresh
+      // wait for api call
       await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (e) {
       await addToMedRemindToggleOutbox(item.id, newValue);
@@ -190,7 +189,7 @@ export default function NotificationsManagerScreen() {
             <Text style={styles.modalTitle}>แก้ไขการแจ้งเตือน</Text>
             {editData && (
               <>
-                {/* reminderEnabled switch OUTSIDE modal content */}
+                {/* reminderEnabled switch */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18, alignSelf: 'center' }}>
                   <Text style={{ marginRight: 8, fontSize: 16 }}>เปิดแจ้งเตือน</Text>
                   <Switch
@@ -218,7 +217,7 @@ export default function NotificationsManagerScreen() {
                   onChangeText={text => handleEditChange('duration', text)}
                   placeholder="ระยะเวลา"
                 />
-                {/* mealTiming as dropdown */}
+                {/* mealTiming */}
                 <View style={{ marginBottom: 12 }}>
                   <Text style={{ marginBottom: 4, fontSize: 15 }}>เวลากับมื้ออาหาร</Text>
                   <View style={{ borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, backgroundColor: '#fafafa' }}>
@@ -226,6 +225,7 @@ export default function NotificationsManagerScreen() {
                       selectedValue={editData.mealTiming}
                       onValueChange={val => handleEditChange('mealTiming', val)}
                       style={{ height: 50 }}
+                      itemStyle={{ color: 'gray'}}
                     >
                       <Picker.Item label="ก่อนอาหาร" value="ก่อนอาหาร" />
                       <Picker.Item label="หลังอาหาร" value="หลังอาหาร" />

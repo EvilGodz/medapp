@@ -3,15 +3,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function AlarmScreen() {
@@ -29,18 +29,17 @@ export default function AlarmScreen() {
       const thirtyMinsBefore = new Date(now.getTime() - 30 * 60000); // 30 minutes before
       const thirtyMinsAfter = new Date(now.getTime() + 30 * 60000);  // 30 minutes after
       
-      // Get all medications and today's dose history
+      // get all med and today dose history
       const [allMeds, todayDoses] = await Promise.all([
         getMedReminds(),
         getTodaysDoses()
       ]);
 
-      // Filter medications that need to be taken in the 30-minute window
+      // filter 30min (not taken)
       const upcoming = allMeds.filter((med) => {
-        // Skip if not enabled
+        // skip disabled
         if (!med.reminderEnabled) return false;
 
-        // If we have a specific medicationId from the notification, only show that one
         if (medicationId && med.id !== medicationId) return false;
 
         const times = med.times || [];
@@ -49,7 +48,7 @@ export default function AlarmScreen() {
           const medicationTime = new Date();
           medicationTime.setHours(hours, minutes, 0, 0);
 
-          // Check if this dose has been taken
+          // check taken
           const isDoseTaken = todayDoses.some(
             dose => 
               dose.medRemindId === med.id && 
@@ -58,7 +57,7 @@ export default function AlarmScreen() {
               new Date(dose.timestamp).getMinutes() === minutes
           );
 
-          // Only include if not taken and within the 30-minute window
+          // check if in 30m
           return !isDoseTaken && 
                  medicationTime >= thirtyMinsBefore && 
                  medicationTime <= thirtyMinsAfter;
@@ -76,7 +75,7 @@ export default function AlarmScreen() {
       await recordDose(medRemind.id, true, new Date().toISOString(), time);
       await loadUpcomingMedications();
     } catch (error) {
-      Alert.alert("Error", "Failed to record dose. Please try again.");
+      Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกการรับประทานยาได้ กรุณาลองอีกครั้ง");
     }
   };
 

@@ -2,11 +2,11 @@ import { MedRemind, getMedReminds } from '@/utils/storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 interface MedicationAlarmScreenProps {
@@ -27,15 +27,13 @@ export default function MedicationAlarmScreen({ medicationId }: MedicationAlarmS
       const nextHour = new Date(now);
       nextHour.setHours(nextHour.getHours() + 1);
       
-      // Get all medications
+      // get med
       const allMeds = await getMedReminds();
 
-      // Filter medications that need to be taken in the next hour
+      // filter 1h
       const upcoming = allMeds.filter((med) => {
-        // Skip if not enabled
         if (!med.reminderEnabled) return false;
 
-        // If we have a specific medicationId from the notification, only show that one
         if (medicationId && med.id !== medicationId) return false;
 
         const times = med.times || [];

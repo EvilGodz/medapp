@@ -91,7 +91,7 @@ const MyProfileScreen = () => {
         return;
       }
 
-      // Add 2s timeout to fetch
+      // 2s timeout
       const fetchWithTimeout = (url: string, options: any, timeout = 2000) => {
         return Promise.race([
           fetch(url, options),
@@ -116,7 +116,7 @@ const MyProfileScreen = () => {
           online = true;
         }
       } catch (error) {
-        // offline fallback
+        // offline
         const cached = await AsyncStorage.getItem('user');
         if (cached) user = JSON.parse(cached);
       }
@@ -129,7 +129,7 @@ const MyProfileScreen = () => {
           setSelectedDate(parsedDate);
         }
       }
-  // If online, process outbox
+  // outbox
   if (online) await processProfileOutbox(token, API_BASE_URL);
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -143,7 +143,6 @@ const MyProfileScreen = () => {
     try {
       setSaving(true);
       
-      // Validate phone number before saving
       if (editedData.phone && !validatePhoneNumber(editedData.phone)) {
         setPhoneError('เบอร์โทรศัพท์ต้องมี 10 หลัก');
         setSaving(false);
@@ -156,7 +155,6 @@ const MyProfileScreen = () => {
         return;
       }
 
-      // Prepare update data
       const updateData = {
         fullname: editedData.fullname,
         birth_date: editedData.birth_date,
@@ -166,7 +164,7 @@ const MyProfileScreen = () => {
         gender: editedData.gender || null
       };
 
-      // Try to save online with 2s timeout
+      // save online 2s timeout
       const fetchWithTimeout = (url: string, options: any, timeout = 2000) => {
         return Promise.race([
           fetch(url, options),
@@ -190,11 +188,11 @@ const MyProfileScreen = () => {
           Alert.alert('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถอัพเดทโปรไฟล์ได้');
         }
       } catch (error) {
-        // If offline or failed, queue in outbox
+        // outbox
         await addToProfileOutbox(updateData);
         Alert.alert('บันทึกแบบออฟไลน์', 'การอัพเดทโปรไฟล์จะ sync เมื่อคุณออนไลน์');
       }
-      // Always update local cache
+      // update local cache
       setUserData(editedData);
       await AsyncStorage.setItem('user', JSON.stringify(editedData));
       if (success) {
@@ -280,15 +278,12 @@ const MyProfileScreen = () => {
   };
 
   const handlePhoneChange = (text: string) => {
-    // Remove all non-digit characters
     const cleaned = text.replace(/\D/g, '');
     
-    // Limit to 10 digits
     const limited = cleaned.slice(0, 10);
     
     setEditedData({ ...editedData, phone: limited });
     
-    // Validate phone number
     if (limited && limited.length !== 10) {
       setPhoneError('เบอร์โทรศัพท์ต้องมี 10 หลัก');
     } else {
@@ -497,7 +492,7 @@ const MyProfileScreen = () => {
     );
   };
 
-  // ตรวจสอบว่ามีการแก้ไขข้อมูลหรือไม่
+  // check edit
   const isEdited = !isEqual(editedData, userData);
 
   if (loading) {

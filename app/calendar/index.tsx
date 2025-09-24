@@ -81,7 +81,7 @@ export default function CalendarScreen() {
         (dose) => new Date(dose.timestamp).toDateString() === date.toDateString()
       );
       
-      // Check if any medication should be taken on this date (respecting occurrence-based duration and dayFrequency)
+      // check if med should be taked today
       const hasMedicationsForDate = medications.some((medication) => {
         const medStartDate = new Date(medication.startDate);
         const medStart = new Date(
@@ -90,7 +90,7 @@ export default function CalendarScreen() {
           medStartDate.getDate()
         );
 
-        // Duration is number of occurrences unless ongoing
+        // duration
         const dayFrequency = Math.max(1, Number(medication.dayFrequency) || 1);
         let occurrenceCount = Infinity;
         if (!/(ongoing|ต่อเนื่อง)/i.test(medication.duration)) {
@@ -157,7 +157,7 @@ export default function CalendarScreen() {
       (dose) => new Date(dose.timestamp).toDateString() === dateStr
     );
 
-    // แสดงเฉพาะยาที่ต้องกินในวันที่ selectedDate (occurrence-based duration)
+    // แสดงเฉพาะยาที่ต้องกินในวันที่ selectedDate
     const filteredMeds = medications.filter((medication) => {
       const selected = new Date(
         selectedDate.getFullYear(),
@@ -193,7 +193,6 @@ export default function CalendarScreen() {
       return <Text style={{ textAlign: 'center', color: '#888', marginTop: 20 }}>No medications for this date.</Text>;
     }
 
-    // Expand into per-time entries
     const entries = filteredMeds.flatMap((med) => {
       if (Array.isArray(med.times) && med.times.length > 0) {
         return med.times.map((t) => ({ med, time: t }));
@@ -201,7 +200,7 @@ export default function CalendarScreen() {
       return [{ med, time: '' }];
     });
 
-    // Group by period (เช้า, กลางวัน, เย็น, ก่อนนอน)
+    // เช้า, กลางวัน, เย็น, ก่อนนอน
     const classifyPeriod = (timeStr: string): 'เช้า'|'กลางวัน'|'เย็น'|'ก่อนนอน' => {
       const [hhStr] = (timeStr || '23:59').split(':');
       const hh = parseInt(hhStr, 10) || 23;
@@ -216,7 +215,7 @@ export default function CalendarScreen() {
       byPeriod[classifyPeriod(e.time)].push(e);
     }
 
-    // Render by period
+    // render group
     return (
       <>
         {periodOrder.map(period => {
@@ -315,7 +314,6 @@ export default function CalendarScreen() {
                                 new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout recording dose')), 1000))
                               ]);
                             } catch (error) {
-                              // If offline or failed, queue in outbox
                               if (typeof require !== 'undefined') {
                                 // dynamic import to avoid circular deps
                                 const { addToDoseOutbox } = require('../../utils/outbox');
