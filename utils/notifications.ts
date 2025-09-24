@@ -9,18 +9,29 @@ Notification.setNotificationHandler({
             showAlarmScreen?: boolean;
         } | null;
 
-        // If showAlarmScreen is enabled, present the notification immediately
-        const shouldPresent = data?.showAlarmScreen ?? false;
-
         return {
             shouldPlaySound: true,
             shouldSetBadge: true,
             shouldShowBanner: true,
             shouldShowList: true,
-            shouldPresent: true, // Always show the notification
+            shouldPresent: true,
+            shouldShowAlert: true, // Show alert when in background
         };
     },
 });
+
+// Configure background behavior
+Notification.setNotificationCategoryAsync('medication_alarm', [
+    {
+        identifier: 'TAKE_NOW',
+        buttonTitle: 'รับประทานตอนนี้',
+        options: {
+            opensAppToForeground: true,
+            isDestructive: false,
+            isAuthenticationRequired: false,
+        },
+    },
+]);
 
 export async function registerForPushNotificationsAsync(): Promise<string|null> {
     let token: string | null = null;

@@ -1,8 +1,13 @@
-import { MedRemind, getMedReminds, getTodaysDoses } from '@/utils/storage';
+import { MedRemind, getMedReminds, getTodaysDoses, recordDose } from '@/utils/storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+    Alert,
+    Dimensions,
+    Image,
     SafeAreaView,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -66,32 +71,58 @@ export default function AlarmScreen() {
     }
   };
 
+  const handleTakeDose = async (medRemind: MedRemind, time?: string) => {
+    try {
+      await recordDose(medRemind.id, true, new Date().toISOString(), time);
+      await loadUpcomingMedications();
+    } catch (error) {
+      Alert.alert("Error", "Failed to record dose. Please try again.");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>รายการยาที่ต้องทาน</Text>
-        <Text style={styles.subtitle}>ในช่วง 1 ชั่วโมงถัดไป</Text>
+        <Text style={styles.subtitle}>ในช่วง 30 นาทีถัดไป</Text>
+        <Image
+          source={require('@/assets/images/alarm.png')}
+          style={styles.alarmImage}
+        />
       </View>
 
-      {upcomingMedications.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>ไม่มียาที่ต้องทานในช่วงเวลานี้</Text>
-        </View>
-      ) : (
-        <View style={styles.medicationList}>
-          {upcomingMedications.map((medication) => (
-            <View key={medication.id} style={styles.medicationCard}>
-              <View style={styles.medicationInfo}>
-                <Text style={styles.medicationName}>{medication.name}</Text>
-                <Text style={styles.medicationDosage}>{medication.dosage}</Text>
-                <Text style={styles.medicationTime}>
-                  {medication.times?.join(', ')}
-                </Text>
+      <ScrollView style={styles.medicationList} showsVerticalScrollIndicator={false}>
+        {upcomingMedications.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="medical-outline" size={48} color='#ccc' />
+            <Text style={styles.emptyText}>ไม่มียาที่ต้องทานในช่วงเวลานี้</Text>
+          </View>
+        ) : (
+          upcomingMedications.map((medication) => (
+            <View key={medication.id} style={styles.doseCard}>
+              <View style={[styles.doseBadge, { backgroundColor: `${medication.color || '#1a8e2d'}20` }]}>
+                <Ionicons name="medical" size={24} color={medication.color || '#1a8e2d'} />
               </View>
+              <View style={styles.doseInfo}>
+                <View>
+                  <Text style={styles.medicineName}>{medication.name}</Text>
+                  <Text style={styles.dosageText}>{medication.dosage}</Text>
+                </View>
+                <View style={styles.doseTime}>
+                  <Ionicons name="time-outline" size={16} color="#ccc" />
+                  <Text style={styles.timeText}>{Array.isArray(medication.times) ? medication.times[0] : ''}</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.takeDoseButton, { backgroundColor: medication.color || '#1a8e2d' }]}
+                onPress={() => handleTakeDose(medication, Array.isArray(medication.times) ? medication.times[0] : undefined)}
+              >
+                <Text style={styles.takeDoseText}>รับประทาน</Text>
+              </TouchableOpacity>
             </View>
-          ))}
-        </View>
-      )}
+          ))
+        )}
+      </ScrollView>
 
       <TouchableOpacity 
         style={styles.closeButton}
@@ -103,6 +134,8 @@ export default function AlarmScreen() {
   );
 }
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -113,6 +146,11 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     alignItems: 'center',
     backgroundColor: '#1a8e2d',
+  },
+  alarmImage: {
+    width: width * 0.8,
+    height: width * 0.6,
+    marginVertical: 10,
   },
   title: {
     fontSize: 24,
@@ -127,50 +165,76 @@ const styles = StyleSheet.create({
   medicationList: {
     padding: 16,
   },
-  medicationCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+  doseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3
   },
-  medicationInfo: {
-    flex: 1,
+  doseBadge: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15
   },
-  medicationName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  medicationDosage: {
+  medicineName: {
     fontSize: 16,
-    color: '#666',
-    marginBottom: 2,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4
   },
-  medicationTime: {
+  doseInfo: {
+    flex: 1,
+    justifyContent: 'space-between'
+  },
+  dosageText: {
     fontSize: 14,
-    color: '#1a8e2d',
+    color: "#666",
+    marginBottom: 2
+  },
+  doseTime: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4
+  },
+  timeText: {
+    marginLeft: 5,
+    color: "#666",
+    fontSize: 14
+  },
+  takeDoseButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 15,
+    marginLeft: 10
+  },
+  takeDoseText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 14
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: "white",
+    borderRadius: 16,
+    marginTop: 10
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    marginTop: 10
   },
   closeButton: {
     backgroundColor: '#1a8e2d',
