@@ -4,12 +4,22 @@ import { NativeModules, Platform } from 'react-native';
 import { MedRemind } from "./storage";
 
 Notification.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
+    handleNotification: async (notification) => {
+        const data = notification.request.content.data as {
+            showAlarmScreen?: boolean;
+        } | null;
+
+        // If showAlarmScreen is enabled, present the notification immediately
+        const shouldPresent = data?.showAlarmScreen ?? false;
+
+        return {
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+            shouldPresent: true, // Always show the notification
+        };
+    },
 });
 
 export async function registerForPushNotificationsAsync(): Promise<string|null> {
@@ -136,33 +146,22 @@ export async function scheduleMedicationReminder(
           content: {
             title: "Medication Reminder",
             body: `อย่าลืมทาน ${medication.name} (${medication.dosage})`,
-            data: { medicationId: medication.id },
-      // ensure android channel is set
-      ...(Platform.OS === 'android' && { channelId: 'default' }),
-      // platform-specific control for sound/vibrate
-      ...(Platform.OS === 'android' ? {
-        sound: notificationSettings.sound ? 'default' : undefined,
-        // Android vibration pattern is set via channel; handled in registerForPushNotificationsAsync
-      } : {}),
-      ...(Platform.OS === 'ios' ? {
-        sound: notificationSettings.sound ? 'default' : undefined,
-      } : {}),
-            // showImage: custom logic below
-            ...(notificationSettings.showImage && {
-              // You can use local image or remote url here
-              // For demo, use local icon
-              // Only Android supports bigPicture
-              android: {
-                imageUrl: Platform.OS === 'android' ? 'asset:/icon.png' : undefined,
-              },
-              ios: {
-                attachments: [
-                  {
-                    url: 'icon.png', // You may need to adjust path for iOS
-                  },
-                ],
-              },
-            }),
+            data: { 
+              medicationId: medication.id,
+              showAlarmScreen: notificationSettings.showImage
+            },
+            // ensure android channel is set
+            ...(Platform.OS === 'android' && { channelId: 'default' }),
+            // platform-specific control for sound/vibrate
+            ...(Platform.OS === 'android' ? {
+              sound: notificationSettings.sound ? 'default' : undefined,
+              // Android vibration pattern is set via channel; handled in registerForPushNotificationsAsync
+            } : {}),
+            ...(Platform.OS === 'ios' ? {
+              sound: notificationSettings.sound ? 'default' : undefined,
+            } : {}),
+            // When showImage is true, we'll navigate to the alarm screen instead of showing an image
+            categoryIdentifier: notificationSettings.showImage ? 'medication_alarm' : undefined,
           },
           trigger: {
             type: Notification.SchedulableTriggerInputTypes.DATE,
