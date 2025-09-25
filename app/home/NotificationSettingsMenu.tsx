@@ -8,6 +8,7 @@ export interface NotificationSettings {
   sound: boolean;
   vibrate: boolean;
   showImage: boolean;
+  continuousReminder: boolean;
 }
 
 interface Props {
@@ -16,7 +17,7 @@ interface Props {
 }
 
 const router = useRouter();
-const defaultSettings: NotificationSettings = { sound: true, vibrate: true, showImage: false };
+const defaultSettings: NotificationSettings = { sound: true, vibrate: true, showImage: false, continuousReminder: false };
 
 const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings, onChange = () => { } }) => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -82,7 +83,7 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
       <TouchableOpacity style={styles.card} onPress={openModal} activeOpacity={0.85}>
         <Text style={styles.title}>ตั้งค่าการแจ้งเตือน</Text>
         <Text style={{ color: '#888', fontSize: 15 }}>
-          {(editData.sound ? 'เสียงเปิด' : 'เสียงปิด')} | {(editData.vibrate ? 'สั่นเปิด' : 'สั่นปิด')} | {(editData.showImage ? 'แสดงภาพ' : 'ไม่แสดงภาพ')}
+          {(editData.sound ? 'เสียงเปิด' : 'เสียงปิด')} | {(editData.vibrate ? 'สั่นเปิด' : 'สั่นปิด')} | {(editData.showImage ? 'แสดงภาพ' : 'ไม่แสดงภาพ')} | {(editData.continuousReminder ? 'แจ้งเตือนต่อเนื่อง' : 'แจ้งเตือนครั้งเดียว')}
         </Text>
       </TouchableOpacity>
       <Modal
@@ -119,6 +120,18 @@ const NotificationSettingsMenu: React.FC<Props> = ({ settings = defaultSettings,
                 onValueChange={v => handleChange('showImage', v)}
                 trackColor={{ false: '#ddd', true: '#1a8e2d' }}
                 thumbColor={Platform.OS === 'android' ? (editData.showImage ? '#1a8e2d' : '#f4f3f4') : ''}
+              />
+            </View>
+            <View style={styles.row}>
+              <View>
+                <Text style={styles.label}>แจ้งเตือนต่อเนื่อง</Text>
+                <Text style={styles.sublabel}>แจ้งเตือนทุก 10 นาที (ไม่เกิน 1 ชั่วโมง)</Text>
+              </View>
+              <Switch
+                value={!!editData.continuousReminder}
+                onValueChange={v => handleChange('continuousReminder', v)}
+                trackColor={{ false: '#ddd', true: '#1a8e2d' }}
+                thumbColor={Platform.OS === 'android' ? (editData.continuousReminder ? '#1a8e2d' : '#f4f3f4') : ''}
               />
             </View>
             <View style={styles.modalActions}>
@@ -177,6 +190,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 15,
     color: '#333',
+  },
+  sublabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   icon: {
     width: 32,

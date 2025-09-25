@@ -209,13 +209,31 @@ const ProfileScreen = () => {
     if (h <= 0) {
       return { bmi: null as null | number, bmiDisplay: '-', category: 'ไม่มีข้อมูล' };
     }
+    
     const raw = weight / (h * h);
     const rounded = Math.round(raw * 10) / 10;
+    const gender = userData?.gender?.toLowerCase() || 'ชาย'; // ถ้าไม่ระบุเพศให้ใช้เกณฑ์ผู้ชาย
+    
     let category = '';
-    if (rounded < 18.5) category = 'ผอม';
-    else if (rounded < 25) category = 'ปกติ';
-    else if (rounded < 30) category = 'น้ำหนักเกิน';
-    else category = 'อ้วน';
+    
+    if (gender === 'หญิง') {
+      // เกณฑ์ BMI สำหรับผู้หญิง
+      if (rounded < 18.5) category = 'ผอม';
+      else if (rounded < 24) category = 'ปกติ';
+      else if (rounded < 29) category = 'ท้วม';
+      else if (rounded < 35) category = 'โรคอ้วนระดับ 1';
+      else if (rounded < 40) category = 'โรคอ้วนระดับ 2';
+      else category = 'โรคอ้วนระดับ 3';
+    } else {
+      // เกณฑ์ BMI สำหรับผู้ชาย
+      if (rounded < 18.5) category = 'ผอม';
+      else if (rounded < 25) category = 'ปกติ';
+      else if (rounded < 30) category = 'ท้วม';
+      else if (rounded < 35) category = 'โรคอ้วนระดับ 1';
+      else if (rounded < 40) category = 'โรคอ้วนระดับ 2';
+      else category = 'โรคอ้วนระดับ 3';
+    }
+    
     return { bmi: rounded, bmiDisplay: rounded.toFixed(1), category };
   };
 

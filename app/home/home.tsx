@@ -391,32 +391,56 @@ export default function HomeScreen() {
                                                     const pending = list.filter(e => !isTimeDoseTaken(e.med.id, e.time) && !isTimeDoseMissed(e.med, e.time));
                                                     if (pending.length === 0) return null;
                                                     return (
-                                                        <View key={period + '|' + meal} style={{ marginLeft: 8, marginTop: 6 }}>
+                                                        <View key={period + '|' + meal}>
                                                             {!!meal && <Text style={{ fontWeight: '600', color: '#444', marginBottom: 4 }}>{meal}</Text>}
                                                             {pending.map((entry, idx) => {
                                                                 const medication = entry.med;
                                                                 const time = entry.time;
                                                                 return (
                                                                     <View key={medication.id + '|' + time + '|' + idx} style={style.doseCard}>
-                                                                        <View style={[style.doseBadge, { backgroundColor: `${medication.color}20` }]}>
-                                                                            <Ionicons name="medical" size={24} color={medication.color} />
-                                                                        </View>
+                                                                        <View
+                                                                            style={[
+                                                                                style.medicationColor,
+                                                                                { backgroundColor: medication.color },
+                                                                            ]}
+                                                                        />
                                                                         <View style={style.doseInfo}>
                                                                             <View>
                                                                                 <Text style={style.medicineName}>{medication.name}</Text>
                                                                                 <Text style={style.doseInfo}>{medication.dosage}</Text>
-                                                                            </View>
-                                                                            <View style={style.doseTime}>
-                                                                                <Ionicons name="time-outline" size={16} color="#ccc" />
                                                                                 <Text style={style.timeText}>{time}</Text>
                                                                             </View>
                                                                         </View>
-                                                                        <TouchableOpacity
-                                                                            style={[style.takeDoseButton, { backgroundColor: medication.color }]}
-                                                                            onPress={() => handleTakeDose(medication, time)}
-                                                                        >
-                                                                            <Text style={style.takeDoseText}>รับประทาน</Text>
-                                                                        </TouchableOpacity>
+                                                                        {(() => {
+                                                                            const now = new Date();
+                                                                            const [hour, minute] = (time || '00:00').split(':').map(Number);
+                                                                            const scheduledTime = new Date(
+                                                                                now.getFullYear(),
+                                                                                now.getMonth(),
+                                                                                now.getDate(),
+                                                                                hour,
+                                                                                minute
+                                                                            );
+                                                                            const timeDiff = now.getTime() - scheduledTime.getTime();
+                                                                            const hourDiff = Math.abs(timeDiff) / (1000 * 60 * 60);
+
+                                                                            if (hourDiff > 1) {
+                                                                                return (
+                                                                                    <View style={[style.takeDoseButton, { backgroundColor: '#ccc' }]}>
+                                                                                        <Text style={[style.takeDoseText, { color: '#888' }]}>ยังไม่ถึงเวลา</Text>
+                                                                                    </View>
+                                                                                );
+                                                                            }
+
+                                                                            return (
+                                                                                <TouchableOpacity
+                                                                                    style={[style.takeDoseButton, { backgroundColor: medication.color }]}
+                                                                                    onPress={() => handleTakeDose(medication, time)}
+                                                                                >
+                                                                                    <Text style={style.takeDoseText}>รับประทาน</Text>
+                                                                                </TouchableOpacity>
+                                                                            );
+                                                                        })()}
                                                                     </View>
                                                                 );
                                                             })}
@@ -450,11 +474,14 @@ export default function HomeScreen() {
                                                         {taken.map((entry, idx) => (
                                                             <View
                                                                 key={'taken|' + entry.med.id + '|' + entry.time + '|' + idx}
-                                                                style={[style.doseCard, { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0', borderWidth: 1, opacity: 1 }]}
+                                                                style={[style.doseCard, { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0', borderWidth: 1 }]}
                                                             >
-                                                                <View style={[style.doseBadge, { backgroundColor: `${entry.med.color}20` }]}>
-                                                                    <Ionicons name="medical" size={24} color={entry.med.color} />
-                                                                </View>
+                                                                <View
+                                                                    style={[
+                                                                        style.medicationColor,
+                                                                        { backgroundColor: entry.med.color },
+                                                                    ]}
+                                                                />
                                                                 <View style={style.doseInfo}>
                                                                     <View>
                                                                         <Text style={[style.medicineName, { color: '#999' }]}>{entry.med.name}</Text>
@@ -466,8 +493,8 @@ export default function HomeScreen() {
                                                                     </View>
                                                                 </View>
                                                                 <View style={style.takenBadge}>
-                                                                    <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
-                                                                    <Text style={style.takenText}>รับประทานแล้ว</Text>
+                                                                    <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                                                                    <Text style={style.takenText}>ทานแล้ว</Text>
                                                                 </View>
                                                             </View>
                                                         ))}
@@ -486,25 +513,24 @@ export default function HomeScreen() {
                                                                 style={[style.doseCard, {
                                                                     backgroundColor: '#F5F5F5',
                                                                     borderColor: '#b71c1c',
-                                                                    borderWidth: 2,
-                                                                    opacity: 1
+                                                                    borderWidth: 2
                                                                 }]}
                                                             >
-                                                                <View style={[style.doseBadge, { backgroundColor: `${entry.med.color}14` }]}>
-                                                                    <Ionicons name="medical" size={24} color={entry.med.color} />
-                                                                </View>
+                                                                <View
+                                                                    style={[
+                                                                        style.medicationColor,
+                                                                        { backgroundColor: entry.med.color },
+                                                                    ]}
+                                                                />
                                                                 <View style={style.doseInfo}>
                                                                     <View>
-                                                                        <Text style={[style.medicineName, { color: '#b71c1c' }]}>{entry.med.name}</Text>
-                                                                        <Text style={[style.doseInfo, { color: '#b71c1c' }]}>{entry.med.dosage}</Text>
-                                                                    </View>
-                                                                    <View style={style.doseTime}>
-                                                                        <Ionicons name="time-outline" size={16} color="#b71c1c" />
-                                                                        <Text style={[style.timeText, { color: '#b71c1c' }]}>{entry.time}</Text>
+                                                                        <Text style={style.medicineName}>{entry.med.name}</Text>
+                                                                        <Text style={style.doseInfo}>{entry.med.dosage}</Text>
+                                                                        <Text style={style.timeText}>{entry.time}</Text>
                                                                     </View>
                                                                 </View>
                                                                 <View style={[style.takenBadge, { backgroundColor: '#fde0e0' }]}>
-                                                                    <Ionicons name="close-circle-outline" size={24} color="#b71c1c" />
+                                                                    <Ionicons name="close-circle" size={20} color="#b71c1c" />
                                                                     <Text style={[style.takenText, { color: '#b71c1c' }]}>ไม่ได้รับประทาน</Text>
                                                                 </View>
                                                             </View>
@@ -592,6 +618,22 @@ export default function HomeScreen() {
 }
 
 const style = StyleSheet.create({
+    // Medication Card Styles
+    medicationCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "white",
+        borderRadius: 16,
+        padding: 15,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
     containter: {
         flex: 1,
         backgroundColor: "#f8f9fa",
@@ -876,4 +918,10 @@ const style = StyleSheet.create({
         color: '#333',
         marginTop: 2,
     },
+    medicationColor: {
+    width: 12,
+    height: 40,
+    borderRadius: 6,
+    marginRight: 15,
+  }
 });

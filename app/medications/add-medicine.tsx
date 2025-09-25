@@ -11,7 +11,7 @@ export default function AddMedicineScreen() {
   const [medicine_name, setMedicineName] = useState('');
   const [section_4_precautions, setSection4Precautions] = useState('');
   const [dosage, setDosage] = useState('');
-  const [medicineCategory, setMedicineCategory] = useState<'เม็ด' | 'น้ำ'>('เม็ด');
+  const [medicineCategory, setMedicineCategory] = useState<'เม็ด' | 'น้ำ' | 'ทา'>('เม็ด');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState('');
@@ -98,6 +98,7 @@ export default function AddMedicineScreen() {
               >
                 <Picker.Item label="เม็ด" value="เม็ด" color="gray" />
                 <Picker.Item label="น้ำ" value="น้ำ" color="gray" />
+                <Picker.Item label="ทา" value="ทา" color="gray" />
               </Picker>
             </View>
           </View>

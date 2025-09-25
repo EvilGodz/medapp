@@ -163,6 +163,12 @@ export async function recordDose(
         time || ''
     );
     await doseHistoryAPI.create({ id, medRemindId, timestamp, taken, time });
+    
+    // If the medication was taken, cancel any remaining follow-up reminders
+    if (taken) {
+        const { cancelContinuousReminders } = await import('./notifications');
+        await cancelContinuousReminders(medRemindId, new Date(timestamp).getTime());
+    }
 }
 
 //miss if >1h

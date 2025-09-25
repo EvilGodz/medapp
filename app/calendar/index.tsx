@@ -305,34 +305,57 @@ export default function CalendarScreen() {
                       </View>
                     ) : (
                       isToday ? (
-                        <TouchableOpacity
-                          style={[styles.takeDoseButton, { backgroundColor: medication.color }]}
-                          onPress={async () => {
-                            try {
-                              await Promise.race([
-                                recordDose(medication.id, true, new Date().toISOString(), time),
-                                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout recording dose')), 1000))
-                              ]);
-                            } catch (error) {
-                              if (typeof require !== 'undefined') {
-                                // dynamic import to avoid circular deps
-                                const { addToDoseOutbox } = require('../../utils/outbox');
-                                await addToDoseOutbox({
-                                  medRemindId: medication.id,
-                                  taken: true,
-                                  timestamp: new Date().toISOString(),
-                                  time,
-                                });
-                              }
-                            }
-                            loadData();
-                          }}
-                        >
-                          <Text style={styles.takeDoseText}>รับประทาน</Text>
-                        </TouchableOpacity>
+                        (() => {
+                          const now = new Date();
+                          const [hour, minute] = (time || '00:00').split(':').map(Number);
+                          const scheduledTime = new Date(
+                            now.getFullYear(),
+                            now.getMonth(),
+                            now.getDate(),
+                            hour,
+                            minute
+                          );
+                          const timeDiff = now.getTime() - scheduledTime.getTime();
+                          const hourDiff = Math.abs(timeDiff) / (1000 * 60 * 60);
+
+                          if (hourDiff > 1) {
+                            return (
+                              <View style={[styles.takeDoseButton, { backgroundColor: '#ccc' }]}>
+                                <Text style={[styles.takeDoseText, { color: '#888' }]}>ยังไม่ถึงเวลา</Text>
+                              </View>
+                            );
+                          }
+
+                          return (
+                            <TouchableOpacity
+                              style={[styles.takeDoseButton, { backgroundColor: medication.color }]}
+                              onPress={async () => {
+                                try {
+                                  await Promise.race([
+                                    recordDose(medication.id, true, new Date().toISOString(), time),
+                                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout recording dose')), 1000))
+                                  ]);
+                                } catch (error) {
+                                  if (typeof require !== 'undefined') {
+                                    // dynamic import to avoid circular deps
+                                    const { addToDoseOutbox } = require('../../utils/outbox');
+                                    await addToDoseOutbox({
+                                      medRemindId: medication.id,
+                                      taken: true,
+                                      timestamp: new Date().toISOString(),
+                                      time,
+                                    });
+                                  }
+                                }
+                                loadData();
+                              }}
+                            >
+                              <Text style={styles.takeDoseText}>รับประทาน</Text>
+                            </TouchableOpacity>
+                          );
+                        })()
                       ) : (
-                        <View style={[styles.takeDoseButton, { backgroundColor: '#ccc' }]
-                        }>
+                        <View style={[styles.takeDoseButton, { backgroundColor: '#ccc' }]}>
                           <Text style={[styles.takeDoseText, { color: '#888' }]}>รับประทาน</Text>
                         </View>
                       )

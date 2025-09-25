@@ -51,11 +51,24 @@ const DAY_FREQUENCIES = [
     { id: '4', label: 'กำหนดเอง', value: 0 },
 ];
 
+const getDurationLabel = (value: number, dayFrequency: string) => {
+    if (dayFrequency === 'ทุกวัน') {
+        if (value === 7) return 'ภายใน 7 วัน';
+        if (value === 30) return 'ภายใน 30 วัน';
+    } else {
+        if (value === 7) return '7 ครั้ง (วัน)';
+        if (value === 30) return '30 ครั้ง (วัน)';
+    }
+    if (value === -1) return 'ต่อเนื่อง';
+    if (value === 0) return 'กำหนดเอง';
+    return `${value} วัน`;
+};
+
 const DURATIONS = [
-    { id: '1', label: '7 วัน', value: 7 },
-    { id: '2', label: '30 วัน', value: 30 },
-    { id: '3', label: 'ต่อเนื่อง', value: -1 },
-    { id: '4', label: 'กำหนดเอง', value: 0 },
+    { id: '1', value: 7 },
+    { id: '2', value: 30 },
+    { id: '3', value: -1 },
+    { id: '4', value: 0 },
 ];
 
 export default function addNotificationScreen() {
@@ -99,12 +112,90 @@ export default function addNotificationScreen() {
     const [customDayFrequency, setCustomDayFrequency] = useState('');
 
     // สำหรับ dosage unit & conversion
-    const [dosageType, setDosageType] = useState<'เม็ด' | 'ยาน้ำ'>('เม็ด');
+    const [dosageType, setDosageType] = useState<'เม็ด' | 'ยาน้ำ' | 'ยาทา'>('เม็ด');
     const [dosageUnit, setDosageUnit] = useState<'ml' | 'ช้อนชา' | 'ช้อนโต๊ะ'>('ml');
     // เพิ่ม state สำหรับเม็ด/ครึ่งเม็ด
     const [tabletType, setTabletType] = useState<'เม็ด' | 'ครึ่งเม็ด'>('เม็ด');
 
     // แปลงค่าระหว่างหน่วย
+    const checkDosageLimit = async (dosageValue: string, type: 'เม็ด' | 'ยาน้ำ') => {
+        const num = parseFloat(dosageValue);
+        if (isNaN(num)) return true;
+
+        if (type === 'เม็ด') {
+            // ตรวจสอบขนาดยาสำหรับยาเม็ด
+            let tabletCount = num;
+            if (tabletType === 'ครึ่งเม็ด') {
+                tabletCount = num * 0.5; // แปลงจำนวนครึ่งเม็ดเป็นจำนวนเม็ด
+            }
+
+            if (tabletCount > 5) {
+                return new Promise((resolve) => {
+                    Alert.alert(
+                        "คำเตือนขนาดยา",
+                        `ขนาดยาที่ระบุเกิน 5 เม็ด (${tabletType === 'ครึ่งเม็ด' ? num * 0.5 + ' เม็ด' : num + ' เม็ด'}) ต้องการยืนยันหรือไม่?`,
+                        [
+                            {
+                                text: "ยกเลิก",
+                                style: "cancel",
+                                onPress: () => resolve(false)
+                            },
+                            {
+                                text: "ยืนยัน",
+                                onPress: () => resolve(true)
+                            }
+                        ],
+                        { cancelable: false }
+                    );
+                });
+            }
+        }
+
+        if (type === 'ยาน้ำ') {
+            let mlValue = num;
+            const units = {
+                'ml': 1,
+                'ช้อนชา': 5,
+                'ช้อนโต๊ะ': 15
+            };
+
+            // แปลงเป็น ml
+            mlValue = num * units[dosageUnit];
+
+            if (mlValue > 60) {
+                // คำนวณค่าเทียบเท่าในหน่วยอื่น
+                const teaspoons = (mlValue / 5).toFixed(1);
+                const tablespoons = (mlValue / 15).toFixed(1);
+
+                return new Promise((resolve) => {
+                    Alert.alert(
+                        "คำเตือนขนาดยา",
+                        `ขนาดยาที่ระบุเกิน 60 ml\n` +
+                        `(เทียบเท่า:\n` +
+                        `${mlValue.toFixed(1)} ml\n` +
+                        `${teaspoons} ช้อนชา\n` +
+                        `${tablespoons} ช้อนโต๊ะ)\n` +
+                        `ต้องการยืนยันหรือไม่?`,
+                        [
+                            {
+                                text: "ยกเลิก",
+                                style: "cancel",
+                                onPress: () => resolve(false)
+                            },
+                            {
+                                text: "ยืนยัน",
+                                onPress: () => resolve(true)
+                            }
+                        ],
+                        { cancelable: false }
+                    );
+                });
+            }
+        }
+
+        return true;
+    };
+
     const convertDosage = (value: string, from: 'ml' | 'ช้อนชา' | 'ช้อนโต๊ะ', to: 'ml' | 'ช้อนชา' | 'ช้อนโต๊ะ') => {
         const num = parseFloat(value);
         if (isNaN(num)) return '';
@@ -169,29 +260,26 @@ export default function addNotificationScreen() {
                         key={dur.id}
                         style={[
                             styles.optionsCard,
-                            selectedDuration === dur.label && styles.selectedOptionCard
+                            selectedDuration === getDurationLabel(dur.value, selectedDayFrequency) && styles.selectedOptionCard
                         ]}
                         onPress={() => {
-                            setSelectedDuration(dur.label);
-                            setForm({ ...form, duration: dur.label });
+                            const label = getDurationLabel(dur.value, selectedDayFrequency);
+                            setSelectedDuration(label);
+                            setForm({ ...form, duration: label });
                         }}
                     >
-
                         <Text
                             style={[
                                 styles.durationNumber,
-                                selectedDuration === dur.label && styles.selectedDurationNumber
+                                selectedDuration === getDurationLabel(dur.value, selectedDayFrequency) && styles.selectedDurationNumber
                             ]}>
                             {dur.value > 0 ? dur.value : dur.value === 0 ? '?' : '∞'}</Text>
                         <Text
                             style={[
                                 styles.optionsLabel,
-                                selectedDuration === dur.label && styles.selectedOptionsLabel
+                                selectedDuration === getDurationLabel(dur.value, selectedDayFrequency) && styles.selectedOptionsLabel
                             ]}>
-                            {dur.label}</Text>
-
-
-
+                            {getDurationLabel(dur.value, selectedDayFrequency)}</Text>
                     </TouchableOpacity>
                 ))}
                 {/* If custom selected, show input */}
@@ -227,7 +315,15 @@ export default function addNotificationScreen() {
                         ]}
                         onPress={() => {
                             setSelectedDayFrequency(dayFreq.label);
-                            setForm({ ...form, dayFrequency: dayFreq.value });
+                            // Update both dayFrequency and duration label
+                            const currentDuration = DURATIONS.find(d => getDurationLabel(d.value, selectedDayFrequency) === selectedDuration);
+                            if (currentDuration) {
+                                const newDurationLabel = getDurationLabel(currentDuration.value, dayFreq.label);
+                                setSelectedDuration(newDurationLabel);
+                                setForm({ ...form, dayFrequency: dayFreq.value, duration: newDurationLabel });
+                            } else {
+                                setForm({ ...form, dayFrequency: dayFreq.value });
+                            }
                         }}
                     >
                         <Text
@@ -271,7 +367,7 @@ export default function addNotificationScreen() {
             newErrors.name = "กรุณากรอกชื่อยา";
         }
 
-        if (!form.dosage.trim()) {
+        if (dosageType !== 'ยาทา' && !form.dosage.trim()) {
             newErrors.dosage = "กรุณากรอกขนาดยา";
         }
 
@@ -350,6 +446,8 @@ export default function addNotificationScreen() {
                 dosageWithUnit = `${form.dosage} ${dosageUnit}`;
             } else if (dosageType === 'เม็ด' && form.dosage) {
                 dosageWithUnit = `${form.dosage} ${tabletType}`;
+            } else if (dosageType === 'ยาทา') {
+                dosageWithUnit = 'ทาบริเวณที่มีอาการ';
             }
 
             //สร้าง notification ตาม dayFrequency
@@ -396,10 +494,10 @@ export default function addNotificationScreen() {
             // Schedule notification (local only, do not queue in outbox)
             let scheduled = false;
             try {
-                        // Ensure runtime notification permission (Android 13+)
-                        if (Platform.OS === 'android') {
-                            await registerForPushNotificationsAsync();
-                        }
+                // Ensure runtime notification permission (Android 13+)
+                if (Platform.OS === 'android') {
+                    await registerForPushNotificationsAsync();
+                }
                 if (notificationData.reminderEnabled) {
                     await Promise.race([
                         scheduleMedicationReminder(notificationData),
@@ -493,33 +591,78 @@ export default function addNotificationScreen() {
                                 <Text style={{ marginRight: 10, fontSize: 16 }}>ประเภท:</Text>
                                 <TouchableOpacity
                                     style={[styles.typeButton, dosageType === 'เม็ด' ? styles.typeButtonActive : styles.typeButtonInactive]}
-                                    onPress={() => setDosageType('เม็ด')}
+                                    onPress={() => {
+                                        if (dosageType === 'ยาทา') {
+                                            setForm(prev => ({
+                                                ...prev,
+                                                dosage: ''
+                                            }));
+                                        }
+                                        setDosageType('เม็ด');
+                                    }}
                                 >
                                     <Text style={{ color: dosageType === 'เม็ด' ? 'white' : '#333' }}>เม็ด/แคปซูล</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={[styles.typeButton, dosageType === 'ยาน้ำ' ? styles.typeButtonActive : styles.typeButtonInactive, { marginRight: 0 }]}
-                                    onPress={() => setDosageType('ยาน้ำ')}
+                                    style={[styles.typeButton, dosageType === 'ยาน้ำ' ? styles.typeButtonActive : styles.typeButtonInactive]}
+                                    onPress={() => {
+                                        if (dosageType === 'ยาทา') {
+                                            setForm(prev => ({
+                                                ...prev,
+                                                dosage: ''
+                                            }));
+                                        }
+                                        setDosageType('ยาน้ำ');
+                                    }}
                                 >
                                     <Text style={{ color: dosageType === 'ยาน้ำ' ? 'white' : '#333' }}>ยาน้ำ</Text>
                                 </TouchableOpacity>
-                            </View>
-                            
-                            {/* ช่อง dosage + หน่วย */}
-                            <View style={styles.dosageRow}>
-                                <TextInput
-                                    style={[styles.mainInput, styles.inputContainer, errors.dosage && styles.inputError, { flex: 1 }]}
-                                    placeholder={dosageType === 'ยาน้ำ' ? `ขนาดยา (${dosageUnit})` : 'ขนาดยา (เช่น 1 เม็ด)'}
-                                    placeholderTextColor={'gray'}
-                                    value={form.dosage}
-                                    keyboardType={dosageType === 'ยาน้ำ' ? 'numeric' : 'default'}
-                                    onChangeText={(text) => {
-                                        setForm({ ...form, dosage: text });
-                                        if (errors.dosage) {
-                                            setErrors({ ...errors, dosage: '' });
-                                        }
+                                <TouchableOpacity
+                                    style={[styles.typeButton, dosageType === 'ยาทา' ? styles.typeButtonActive : styles.typeButtonInactive, { marginRight: 0 }]}
+                                    onPress={() => {
+                                        setDosageType('ยาทา');
+                                        setForm(prev => ({
+                                            ...prev,
+                                            dosage: 'ทาบริเวณที่มีอาการ'
+                                        }));
                                     }}
-                                />
+                                >
+                                    <Text style={{ color: dosageType === 'ยาทา' ? 'white' : '#333' }}>ยาทา</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <View style={styles.dosageRow}>
+                                {/* ช่อง dosage + หน่วย */}
+                                {dosageType !== 'ยาทา' && (
+                                    <TextInput
+                                        style={[styles.mainInput, styles.inputContainer, errors.dosage && styles.inputError, { flex: 1 }]}
+                                        placeholder={dosageType === 'ยาน้ำ' ? `ขนาดยา (${dosageUnit})` : 'ขนาดยา (เช่น 1 เม็ด)'}
+                                        placeholderTextColor={'gray'}
+                                        value={form.dosage}
+                                        keyboardType={dosageType === 'ยาน้ำ' ? 'numeric' : 'default'}
+                                        onChangeText={async (text) => {
+                                            if (dosageType === 'เม็ด') {
+                                                text = text.replace(/[^0-9.]/g, '');
+                                                const parts = text.split('.');
+                                                if (parts.length > 1) {
+                                                    text = `${parts[0]}.${parts[1].slice(0, 1)}`;
+                                                }
+                                            } else if (dosageType === 'ยาน้ำ') {
+                                                text = text.replace(/[^0-9.]/g, '');
+                                                const parts = text.split('.');
+                                                if (parts.length > 1) {
+                                                    text = `${parts[0]}.${parts[1].slice(0, 1)}`;
+                                                }
+                                            }
+                                            const isValid = await checkDosageLimit(text, dosageType);
+                                            if (isValid) {
+                                                setForm({ ...form, dosage: text });
+                                                if (errors.dosage) {
+                                                    setErrors({ ...errors, dosage: '' });
+                                                }
+                                            }
+                                        }}
+                                    />
+                                )}
                                 {/* เลือกหน่วย เฉพาะยาน้ำ */}
                                 {dosageType === 'ยาน้ำ' && (
                                     <View style={styles.dosageUnitRow}>
@@ -527,38 +670,38 @@ export default function addNotificationScreen() {
                                             style={[styles.dosageUnitButton, dosageUnit === 'ml' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ml')}
                                         >
-                                            <Text style={{ color: dosageUnit === 'ml' ? 'white' : '#333' ,textAlign: 'center',}}>ml</Text>
+                                            <Text style={{ color: dosageUnit === 'ml' ? 'white' : '#333', textAlign: 'center', }}>ml</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={[styles.dosageUnitButton, dosageUnit === 'ช้อนชา' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ช้อนชา')}
                                         >
-                                            <Text style={{ color: dosageUnit === 'ช้อนชา' ? 'white' : '#333' ,textAlign: 'center',}}>ช้อนชา</Text>
+                                            <Text style={{ color: dosageUnit === 'ช้อนชา' ? 'white' : '#333', textAlign: 'center', }}>ช้อนชา</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={[styles.dosageUnitButton, dosageUnit === 'ช้อนโต๊ะ' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
                                             onPress={() => setDosageUnit('ช้อนโต๊ะ')}
                                         >
-                                            <Text style={{ color: dosageUnit === 'ช้อนโต๊ะ' ? 'white' : '#333' ,textAlign: 'center',}}>ช้อนโต๊ะ</Text>
+                                            <Text style={{ color: dosageUnit === 'ช้อนโต๊ะ' ? 'white' : '#333', textAlign: 'center', }}>ช้อนโต๊ะ</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}
                                 {/* ถ้าเลือกเม็ด/แคปซูล ให้เลือก เม็ด หรือ ครึ่งเม็ด */}
                                 {dosageType === 'เม็ด' && (
-                                <View style={styles.dosageUnitRow}>
-                                    <TouchableOpacity
-                                        style={[styles.dosageUnitButton, tabletType === 'เม็ด' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
-                                        onPress={() => setTabletType('เม็ด')}
-                                    >
-                                        <Text style={{ color: tabletType === 'เม็ด' ? 'white' : '#333' ,textAlign: 'center',}}>เม็ด</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.dosageUnitButton, tabletType === 'ครึ่งเม็ด' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
-                                        onPress={() => setTabletType('ครึ่งเม็ด')}
-                                    >
-                                        <Text style={{ color: tabletType === 'ครึ่งเม็ด' ? 'white' : '#333' ,textAlign: 'center',}}>ครึ่งเม็ด</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                    <View style={styles.dosageUnitRow}>
+                                        <TouchableOpacity
+                                            style={[styles.dosageUnitButton, tabletType === 'เม็ด' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
+                                            onPress={() => setTabletType('เม็ด')}
+                                        >
+                                            <Text style={{ color: tabletType === 'เม็ด' ? 'white' : '#333', textAlign: 'center', }}>เม็ด</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.dosageUnitButton, tabletType === 'ครึ่งเม็ด' ? styles.dosageUnitButtonActive : styles.dosageUnitButtonInactive]}
+                                            onPress={() => setTabletType('ครึ่งเม็ด')}
+                                        >
+                                            <Text style={{ color: tabletType === 'ครึ่งเม็ด' ? 'white' : '#333', textAlign: 'center', }}>ครึ่งเม็ด</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 )}
                             </View>
                             {/* ปุ่มแปลงหน่วย เฉพาะยาน้ำ */}
@@ -570,7 +713,6 @@ export default function addNotificationScreen() {
                                             key={unit}
                                             style={styles.convertButton}
                                             onPress={() => {
-                                                // แปลงค่าและเปลี่ยนหน่วย
                                                 const newValue = convertDosage(form.dosage, dosageUnit, unit as any);
                                                 setForm({ ...form, dosage: newValue });
                                                 setDosageUnit(unit as any);
@@ -608,8 +750,21 @@ export default function addNotificationScreen() {
                             <Text style={styles.errorText}>{errors.dosage}</Text>
                         )}
                     </View>
+                    <Text style={styles.sectionTitle}>เวลากับมื้ออาหาร</Text>
+                        {renderMealTiming()}
                     <View style={styles.container}>
-                        <Text style={styles.sectionTitle}>ความถี่ในการรับประทาน</Text>
+                        
+                        
+                        <Text style={styles.sectionTitle}>ตารางการทานยา</Text>
+                        {renderDayFrequencyOptions()}
+                        <Text style={styles.sectionTitle}>
+                            {selectedDayFrequency === 'ทุกวัน' ? 'จำนวนวันที่ทาน' : 'จำนวนครั้งที่ทาน'}
+                        </Text>
+                        {errors.duration && (
+                            <Text style={styles.errorText}>{errors.duration}</Text>
+                        )}
+                        {renderDurationOptions()}
+                        <Text style={styles.sectionTitle}>จำนวนครั้งต่อวัน</Text>
                         {errors.frequency && (
                             <Text style={styles.errorText}>{errors.frequency}</Text>
                         )}
@@ -617,36 +772,30 @@ export default function addNotificationScreen() {
 
                         {form.frequency && form.frequency !== 'ตามต้องการ' && (
                             <View style={styles.timesContainer}>
-                                <Text style={styles.timesTitle}>เวลาทานยา</Text>
+                                <Text style={styles.sectionTitle}>เวลาทานยา</Text>
                                 {form.times.map((time, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        style={styles.timeButton}
-                                        onPress={() => {
-                                            setShowTimePicker(index);
-                                        }}
-                                    >
-                                        <View style={styles.timeIconContainer}>
-                                            <Ionicons name="time-outline" size={20} color={'#1a8e2d'} />
-                                        </View>
-                                        <Text style={styles.timeButtonText}>{time}</Text>
-                                        <Ionicons name="chevron-forward" size={20} color={'#666'} />
-                                    </TouchableOpacity>
+                                    <View key={index}>
+                                        <Text style={styles.timeLabel}>
+                                            เวลาทานยาครั้งที่ {index + 1}
+                                        </Text>
+                                        <TouchableOpacity
+                                            style={styles.timeButton}
+                                            onPress={() => {
+                                                setShowTimePicker(index);
+                                            }}
+                                        >
+                                            <View style={styles.timeIconContainer}>
+                                                <Ionicons name="time-outline" size={20} color={'#1a8e2d'} />
+                                            </View>
+                                            <Text style={styles.timeButtonText}>{time}</Text>
+                                            <Ionicons name="chevron-forward" size={20} color={'#666'} />
+                                        </TouchableOpacity>
+                                    </View>
                                 ))}
                             </View>
                         )}
-                        <Text style={styles.sectionTitle}>ระยะเวลา</Text>
-                        {errors.duration && (
-                            <Text style={styles.errorText}>{errors.duration}</Text>
-                        )}
-                        {renderDurationOptions()}
 
-                        <Text style={styles.sectionTitle}>เวลากับมื้ออาหาร</Text>
-                        {renderMealTiming()}
-
-                        <Text style={styles.sectionTitle}>ความถี่รายวัน</Text>
-                        {renderDayFrequencyOptions()}
-
+                        <Text style={styles.sectionTitle}>วันที่เริ่มทานยา</Text>
                         <TouchableOpacity
                             style={styles.dateButton}
                             onPress={() => setShowDatePicker(true)}
@@ -668,32 +817,39 @@ export default function addNotificationScreen() {
                             />
                         )}
 
-                        
+
 
                         {typeof showTimePicker === 'number' && (
-                            <DateTimePicker
-                                mode="time"
-                                value={(() => {
-                                    const [hours, minutes] = form.times[showTimePicker].split(":").map(Number);
-                                    const date = new Date();
-                                    date.setHours(hours, minutes, 0, 0);
-                                    return date;
-                                })()}
-                                onChange={(event, date) => {
-                                    setShowTimePicker(false);
-                                    if (date) {
-                                        const newTime = date.toLocaleTimeString('default', {
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            hour12: false,
-                                        });
-                                        setForm((prev) => ({
-                                            ...prev,
-                                            times: prev.times.map((t, i) => (i === showTimePicker ? newTime : t))
-                                        }));
-                                    }
-                                }}
-                            />
+                            <View>
+                                {Platform.OS === 'android' && (
+                                    <Text style={[styles.timeLabel, { textAlign: 'center', marginBottom: 8, fontSize: 16 }]}>
+                                        เวลาทานยาครั้งที่ {showTimePicker + 1}
+                                    </Text>
+                                )}
+                                <DateTimePicker
+                                    mode="time"
+                                    value={(() => {
+                                        const [hours, minutes] = form.times[showTimePicker].split(":").map(Number);
+                                        const date = new Date();
+                                        date.setHours(hours, minutes, 0, 0);
+                                        return date;
+                                    })()}
+                                    onChange={(event, date) => {
+                                        setShowTimePicker(false);
+                                        if (date) {
+                                            const newTime = date.toLocaleTimeString('default', {
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                                hour12: false,
+                                            });
+                                            setForm((prev) => ({
+                                                ...prev,
+                                                times: prev.times.map((t, i) => (i === showTimePicker ? newTime : t))
+                                            }));
+                                        }
+                                    }}
+                                />
+                            </View>
                         )}
                     </View>
 
@@ -722,7 +878,7 @@ export default function addNotificationScreen() {
                     </View>
 
                     {/* หมายเหตุ */}
-                    
+
                     {/* <View style={styles.section}>
                         <View style={styles.textAreaContainer}>
                             <TextInput
@@ -913,7 +1069,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 16,
         padding: 15,
-        marginTop: 15,
         borderWidth: 1,
         borderColor: '#e0e0e0',
         shadowColor: '#000',
@@ -1102,8 +1257,8 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         marginLeft: 6,
     },
-    dosageUnitButtonActive: { backgroundColor: '#1a8e2d' ,textAlign: 'center',},
-    dosageUnitButtonInactive: { backgroundColor: '#f8f9fa' ,textAlign: 'center',},
+    dosageUnitButtonActive: { backgroundColor: '#1a8e2d', textAlign: 'center', },
+    dosageUnitButtonInactive: { backgroundColor: '#f8f9fa', textAlign: 'center', },
     tabletTypeRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1124,12 +1279,12 @@ const styles = StyleSheet.create({
     convertRow: {
         flexDirection: 'row',
         marginTop: 8,
-        alignItems: 'center' 
+        alignItems: 'center'
     },
     convertLabel: {
-        marginRight: 8, 
-        color: '#1a8e2d', 
-        fontWeight: '600' 
+        marginRight: 8,
+        color: '#1a8e2d',
+        fontWeight: '600'
     },
     convertButton: {
         backgroundColor: '#e0e0e0',
@@ -1151,7 +1306,7 @@ const styles = StyleSheet.create({
         borderColor: '#e0e0e0',
     },
     suggestionItem: {
-        padding: 10 
+        padding: 10
     },
     customInputBox: {
         width: '100%',
@@ -1170,16 +1325,23 @@ const styles = StyleSheet.create({
         color: '#1a8e2d',
         backgroundColor: '#f8f9fa',
     },
-    customInputHint: { 
-        color: '#888', fontSize: 13 
+    customInputHint: {
+        color: '#888', fontSize: 13
     },
     mealTimingLabel: {
         fontWeight: '600', color: '#333',
-        marginBottom: 8 
+        marginBottom: 8
     },
     mealTimingError: {
-        color: 'red', marginTop: 6 
+        color: 'red', marginTop: 6
     },
     relative: { position: 'relative' },
     dosageRow: { flexDirection: 'row', alignItems: 'center' },
+    timeLabel: { 
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 4,
+        marginLeft: 4,
+        fontWeight: '500'
+    },
 })

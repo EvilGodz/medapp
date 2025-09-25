@@ -72,6 +72,7 @@ export interface NotificationSettings {
   sound: boolean;
   vibrate: boolean;
   showImage: boolean;
+  continuousReminder: boolean;
 }
 
 export async function scheduleMedicationReminder(
@@ -90,7 +91,7 @@ export async function scheduleMedicationReminder(
         const saved = await AsyncStorage.getItem('notification_settings');
         notificationSettings = saved ? JSON.parse(saved) : { sound: true, vibrate: true, showImage: false };
       } catch {
-        notificationSettings = { sound: true, vibrate: true, showImage: false };
+        notificationSettings = { sound: true, vibrate: true, showImage: false, continuousReminder: false };
       }
     }
     // Cancel all existing notifications for this medication first
@@ -153,13 +154,15 @@ export async function scheduleMedicationReminder(
           }
         }
 
+        // Schedule initial notification
         await Notification.scheduleNotificationAsync({
           content: {
             title: "Medication Reminder",
             body: `อย่าลืมทาน ${medication.name} (${medication.dosage})`,
             data: { 
               medicationId: medication.id,
-              showAlarmScreen: notificationSettings.showImage
+              showAlarmScreen: notificationSettings.showImage,
+              isInitialReminder: true
             },
             // ensure android channel is set
             ...(Platform.OS === 'android' && { channelId: 'default' }),
@@ -178,7 +181,40 @@ export async function scheduleMedicationReminder(
             type: Notification.SchedulableTriggerInputTypes.DATE,
             date: notificationDate,
           },
-  });
+        });
+
+        // Schedule continuous reminders if enabled
+        if (notificationSettings.continuousReminder) {
+          // Schedule 5 additional reminders at 10-minute intervals (total 1 hour coverage)
+          for (let i = 1; i <= 5; i++) {
+            const reminderDate = new Date(notificationDate.getTime() + i * 10 * 60 * 1000); // Add 10 minutes * i
+            
+            await Notification.scheduleNotificationAsync({
+              content: {
+                title: "Medication Reminder",
+                body: `อย่าลืมทาน ${medication.name} (${medication.dosage}) (แจ้งเตือนซ้ำครั้งที่ ${i})`,
+                data: { 
+                  medicationId: medication.id,
+                  showAlarmScreen: notificationSettings.showImage,
+                  isFollowUpReminder: true,
+                  reminderCount: i
+                },
+                ...(Platform.OS === 'android' && { channelId: 'default' }),
+                ...(Platform.OS === 'android' ? {
+                  sound: notificationSettings.sound ? 'default' : undefined,
+                } : {}),
+                ...(Platform.OS === 'ios' ? {
+                  sound: notificationSettings.sound ? 'default' : undefined,
+                } : {}),
+                categoryIdentifier: notificationSettings.showImage ? 'medication_alarm' : undefined,
+              },
+              trigger: {
+                type: Notification.SchedulableTriggerInputTypes.DATE,
+                date: reminderDate,
+              },
+            });
+          }
+        }
       }
     }
     return "scheduled";
@@ -238,6 +274,49 @@ export async function cancelMedicationReminders(
   }
 
   // ลบแจ้งเตือนทั้งหมด (ใช้เมื่อออกจากระบบ)
+  export async function cancelContinuousReminders(
+    medicationId: string,
+    timestamp: number
+  ): Promise<void> {
+    try {
+      const scheduledNotifications = await Notification.getAllScheduledNotificationsAsync();
+      
+      for (const notification of scheduledNotifications) {
+        const data = notification.content.data as {
+          medicationId?: string;
+          isFollowUpReminder?: boolean;
+        } | null;
+
+        // Only cancel follow-up reminders for this specific medication
+        if (data?.medicationId === medicationId && data?.isFollowUpReminder) {
+          const triggerDate = (notification.trigger as any)?.date;
+          if (triggerDate) {
+            const notificationTime = new Date(triggerDate).getTime();
+            // Cancel if it's a future reminder for this medication dose
+            if (notificationTime > timestamp) {
+              await Notification.cancelScheduledNotificationAsync(notification.identifier);
+              console.log('Cancelled follow-up reminder:', notification.identifier);
+            }
+          }
+        }
+      }
+
+      // Also cancel any native exact alarms for follow-up reminders if on Android
+      if (Platform.OS === 'android' && (NativeModules as any).AlarmModule && (NativeModules as any).AlarmModule.cancelExactAlarm) {
+        const oneHourLater = timestamp + 60 * 60 * 1000;
+        // Try to cancel all potential follow-up alarms within the next hour
+        for (let t = timestamp; t <= oneHourLater; t += 10 * 60 * 1000) {
+          const id = `${medicationId}_${t}`;
+          try { 
+            await (NativeModules as any).AlarmModule.cancelExactAlarm(id);
+          } catch {};
+        }
+      }
+    } catch (error) {
+      console.error("Error canceling continuous reminders:", error);
+    }
+  }
+
   export async function cancelAllNotifications(): Promise<void> {
     try {
       await Notification.cancelAllScheduledNotificationsAsync();
