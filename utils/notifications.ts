@@ -1,13 +1,167 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notification from "expo-notifications";
-import { NativeModules, Platform } from 'react-native';
+import { Alert, NativeModules, Platform } from 'react-native';
 import { MedRemind } from "./storage";
+
+// ฟังก์ชันขอ permission สำหรับ Exact Alarm
+async function requestAlarmPermissions(): Promise<boolean> {
+    if (Platform.OS === 'android') {
+        try {
+            // เช็คว่ามี AlarmModule หรือไม่
+            if (!(NativeModules as any).AlarmModule?.requestExactAlarmPermission) {
+                console.warn('AlarmModule not available');
+                return false;
+            }
+
+            if (Platform.Version >= 33) { // Android 13 ขึ้นไป
+                const status = await (NativeModules as any).AlarmModule.requestExactAlarmPermission();
+                
+                if (status !== 'granted') {
+                    // แสดง dialog อธิบายว่าทำไมถึงต้องการ permission
+                    Alert.alert(
+                        'ต้องการสิทธิ์การแจ้งเตือนแบบแม่นยำ',
+                        'เพื่อให้การแจ้งเตือนการทานยาทำงานได้อย่างแม่นยำ แอพจำเป็นต้องได้รับอนุญาตในการตั้งค่าการแจ้งเตือนแบบแม่นยำ',
+                        [
+                            {
+                                text: 'ตั้งค่า',
+                                onPress: async () => {
+                                    // เปิดหน้าตั้งค่า permission
+                                    await (NativeModules as any).AlarmModule.openAlarmSettings();
+                                }
+                            },
+                            {
+                                text: 'ยกเลิก',
+                                style: 'cancel'
+                            }
+                        ]
+                    );
+                    return false;
+                }
+                return true;
+            }
+
+            // Android 12 หรือต่ำกว่า ไม่จำเป็นต้องขอ runtime permission
+            return true;
+        } catch (error) {
+            console.error('Error requesting alarm permissions:', error);
+            return false;
+        }
+    }
+    // ไม่ใช่ Android ไม่ต้องขอ permission
+    return true;
+}
+
+// ฟังก์ชันเช็ค permission ว่าได้รับอนุญาตหรือยัง
+async function checkAlarmPermissions(): Promise<boolean> {
+    if (Platform.OS === 'android') {
+        try {
+            if (!(NativeModules as any).AlarmModule?.checkExactAlarmPermission) {
+                return false;
+            }
+
+            if (Platform.Version >= 33) {
+                return await (NativeModules as any).AlarmModule.checkExactAlarmPermission() === 'granted';
+            }
+            return true;
+        } catch (error) {
+            console.error('Error checking alarm permissions:', error);
+            return false;
+        }
+    }
+    return true;
+}
+
+// คีย์สำหรับเก็บสถานะการตอบรับการแจ้งเตือน
+const NOTIFICATION_RESPONSE_KEY = '@MedicineApp:notification_responses';
+
+// interface สำหรับเก็บข้อมูลการตอบรับ
+interface NotificationResponse {
+    timestamp: number;
+    reminderCount: number;
+    responded: boolean;
+}
+
+// interface สำหรับเก็บการตอบรับทั้งหมด
+interface NotificationResponses {
+    [medicationId: string]: NotificationResponse;
+}
+
+// ฟังก์ชันเช็คการตอบรับก่อนหน้า
+async function checkPreviousNotificationResponse(medicationId: string, currentCount: number): Promise<boolean> {
+    try {
+        const responsesStr = await AsyncStorage.getItem(NOTIFICATION_RESPONSE_KEY);
+        if (responsesStr) {
+            const responses: NotificationResponses = JSON.parse(responsesStr);
+            const lastResponse = responses[medicationId];
+            
+            if (lastResponse && lastResponse.responded) {
+                // เช็คว่าเป็นการตอบรับในช่วง 1 ชั่วโมงล่าสุด
+                const isRecent = Date.now() - lastResponse.timestamp < 60 * 60 * 1000;
+                // เช็คว่าเป็นการตอบรับของการแจ้งเตือนก่อนหน้า
+                const isPreviousReminder = lastResponse.reminderCount < currentCount;
+                
+                return isRecent && isPreviousReminder;
+            }
+        }
+    } catch (error) {
+        console.error('Error checking notification response:', error);
+    }
+    return false;
+}
+
+// ฟังก์ชันบันทึกการตอบรับ
+async function saveNotificationResponse(medicationId: string, reminderCount: number, responded: boolean = false) {
+    try {
+        const responsesStr = await AsyncStorage.getItem(NOTIFICATION_RESPONSE_KEY) || '{}';
+        const responses: NotificationResponses = JSON.parse(responsesStr);
+        
+        responses[medicationId] = {
+            timestamp: Date.now(),
+            reminderCount,
+            responded
+        };
+        
+        await AsyncStorage.setItem(NOTIFICATION_RESPONSE_KEY, JSON.stringify(responses));
+    } catch (error) {
+        console.error('Error saving notification response:', error);
+    }
+}
 
 Notification.setNotificationHandler({
     handleNotification: async (notification) => {
         const data = notification.request.content.data as {
             showAlarmScreen?: boolean;
+            isFollowUpReminder?: boolean;
+            medicationId?: string;
+            reminderCount?: number;
         } | null;
+
+        // ถ้าเป็นการแจ้งเตือนต่อเนื่อง
+        if (data?.isFollowUpReminder && data?.medicationId && data?.reminderCount) {
+            try {
+                // เช็คการตอบรับก่อนหน้า
+                const hasResponse = await checkPreviousNotificationResponse(data.medicationId, data.reminderCount);
+                
+                if (hasResponse) {
+                    // ถ้ามีการตอบรับก่อนหน้าแล้ว ยกเลิกการแจ้งเตือนที่เหลือ
+                    console.log('Previous notification was responded to, cancelling remaining reminders');
+                    await cancelContinuousReminders(data.medicationId, Date.now());
+                    return {
+                        shouldPlaySound: false,
+                        shouldSetBadge: false,
+                        shouldShowAlert: false,
+                        shouldShowBanner: false,
+                        shouldShowList: false,
+                        shouldPresent: false,
+                    };
+                }
+                
+                // บันทึกการแสดงการแจ้งเตือนปัจจุบัน
+                await saveNotificationResponse(data.medicationId, data.reminderCount);
+            } catch (error) {
+                console.error("Error handling follow-up notification:", error);
+            }
+        }
 
         return {
             shouldPlaySound: true,
@@ -15,7 +169,7 @@ Notification.setNotificationHandler({
             shouldShowBanner: true,
             shouldShowList: true,
             shouldPresent: true,
-            shouldShowAlert: true, // Show alert when in background
+            shouldShowAlert: true,
         };
     },
 });
@@ -31,7 +185,35 @@ Notification.setNotificationCategoryAsync('medication_alarm', [
             isAuthenticationRequired: false,
         },
     },
+    {
+        identifier: 'DISMISS_ALL',
+        buttonTitle: 'ยกเลิกการแจ้งเตือนทั้งหมด',
+        options: {
+            opensAppToForeground: false,
+            isDestructive: true,
+            isAuthenticationRequired: false,
+        },
+    }
 ]);
+
+// เพิ่ม listener สำหรับการตอบรับการแจ้งเตือน
+Notification.addNotificationResponseReceivedListener(async (response) => {
+    const data = response.notification.request.content.data as {
+        medicationId?: string;
+        isFollowUpReminder?: boolean;
+        reminderCount?: number;
+    };
+
+    if (data?.medicationId) {
+        if (response.actionIdentifier === 'TAKE_NOW' || response.actionIdentifier === 'DISMISS_ALL') {
+            // บันทึกการตอบรับ
+            await saveNotificationResponse(data.medicationId, data.reminderCount || 0, true);
+            
+            // ยกเลิกการแจ้งเตือนที่เหลือ
+            await cancelContinuousReminders(data.medicationId, Date.now());
+        }
+    }
+});
 
 export async function registerForPushNotificationsAsync(): Promise<string|null> {
     let token: string | null = null;
@@ -144,13 +326,33 @@ export async function scheduleMedicationReminder(
 
         console.log('Scheduling notification for', medication.name, notificationDate.toString());
         // On Android prefer native exact alarms for precision
-        if (Platform.OS === 'android' && (NativeModules as any).AlarmModule && (NativeModules as any).AlarmModule.scheduleExactAlarm) {
-          try {
-            const alarmId = `${medication.id}_${notificationDate.getTime()}`;
-            await (NativeModules as any).AlarmModule.scheduleExactAlarm(alarmId, notificationDate.getTime(), "Medication Reminder", `อย่าลืมทาน ${medication.name} (${medication.dosage})`);
-            continue;
-          } catch (e) {
-            console.warn('Native exact alarm failed, falling back to Expo for', medication.name, e);
+        if (Platform.OS === 'android' && (NativeModules as any).AlarmModule?.scheduleExactAlarm) {
+          // ตรวจสอบ permission ก่อน
+          const hasPermission = await checkAlarmPermissions();
+          
+          if (!hasPermission) {
+            // ถ้ายังไม่มี permission ให้ขอ
+            const granted = await requestAlarmPermissions();
+            if (!granted) {
+              console.warn('Exact alarm permission not granted, falling back to Expo notifications');
+              // ดำเนินการต่อไปโดยใช้ Expo notifications
+            }
+          }
+
+          if (hasPermission || await checkAlarmPermissions()) {
+            try {
+              const alarmId = `${medication.id}_${notificationDate.getTime()}`;
+              await (NativeModules as any).AlarmModule.scheduleExactAlarm(
+                alarmId, 
+                notificationDate.getTime(), 
+                "Medication Reminder", 
+                `อย่าลืมทาน ${medication.name} (${medication.dosage})`
+              );
+              console.log('Scheduled exact alarm:', alarmId);
+              continue;
+            } catch (e) {
+              console.warn('Native exact alarm failed, falling back to Expo for', medication.name, e);
+            }
           }
         }
 
@@ -189,6 +391,29 @@ export async function scheduleMedicationReminder(
           for (let i = 1; i <= 5; i++) {
             const reminderDate = new Date(notificationDate.getTime() + i * 10 * 60 * 1000); // Add 10 minutes * i
             
+            // ใช้ Native Exact Alarm สำหรับ Android
+            if (Platform.OS === 'android' && (NativeModules as any).AlarmModule?.scheduleExactAlarm) {
+              // ใช้ permission ที่ขอไว้แล้วจากการแจ้งเตือนหลัก
+              const hasPermission = await checkAlarmPermissions();
+              
+              if (hasPermission) {
+                try {
+                  const alarmId = `${medication.id}_${reminderDate.getTime()}_followup_${i}`;
+                  await (NativeModules as any).AlarmModule.scheduleExactAlarm(
+                    alarmId,
+                    reminderDate.getTime(),
+                    "Medication Reminder",
+                    `อย่าลืมทาน ${medication.name} (${medication.dosage}) (แจ้งเตือนซ้ำครั้งที่ ${i})`
+                  );
+                  console.log('Scheduled follow-up exact alarm:', alarmId);
+                  continue; // ข้ามการใช้ Expo notification ถ้าใช้ Native Alarm สำเร็จ
+                } catch (e) {
+                  console.warn('Native exact alarm failed for follow-up, falling back to Expo', e);
+                }
+              }
+            }
+            
+            // Fallback to Expo notifications หรือใช้สำหรับ iOS
             await Notification.scheduleNotificationAsync({
               content: {
                 title: "Medication Reminder",

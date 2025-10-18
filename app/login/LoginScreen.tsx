@@ -53,23 +53,19 @@ const LoginScreen: React.FC = () => {
           await AsyncStorage.setItem('token', data.data.token);
           await AsyncStorage.setItem('user', JSON.stringify(data.data.user));
         }
-        
-        Alert.alert('สำเร็จ', data.message, [
-          { text: 'ตกลง', onPress: async () => {
-              await syncMedRemindsWithBackend();
-              await syncDoseHistoryWithBackend();
-              router.replace('/home/home');
-            }
-          }
-        ]);
+
+        await syncMedRemindsWithBackend();
+        await syncDoseHistoryWithBackend();
+        router.replace('/home/home');
+
       } else if (data.emailVerified === false) {
         Alert.alert(
           'ต้องยืนยันอีเมล',
           data.message,
           [
             { text: 'ยกเลิก', style: 'cancel' },
-            { 
-              text: 'ส่งอีเมลใหม่', 
+            {
+              text: 'ส่งอีเมลใหม่',
               onPress: () => router.push({ pathname: '/login/EmailVerificationScreen', params: { email: data.email || email } })
             }
           ]
@@ -90,7 +86,7 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -103,9 +99,9 @@ const LoginScreen: React.FC = () => {
             resizeMode="contain"
           />
         </View>
-        
+
         <Text style={styles.title}>ลงชื่อเข้าใช้</Text>
-        
+
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Email</Text>
           <TextInput
@@ -122,27 +118,27 @@ const LoginScreen: React.FC = () => {
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Password</Text>
           <View style={styles.inputBox}>
-          <TextInput
-            style={styles.inputPassword}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
-          >
-            <Ionicons
-          name={showPassword ? 'eye' : 'eye-off'}
-          size={30}
-          color="#888"
-          style={styles.icon}
-        />
-          </TouchableOpacity>
+            <TextInput
+              style={styles.inputPassword}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons
+                name={showPassword ? 'eye' : 'eye-off'}
+                size={30}
+                color="#888"
+                style={styles.icon}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.loginButton}
           onPress={handleLogin}
           disabled={loading}
@@ -154,7 +150,7 @@ const LoginScreen: React.FC = () => {
           )}
         </TouchableOpacity>
         {/* Forgot Password Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.forgotPasswordButton}
           onPress={handleForgotPassword}
         >
@@ -284,13 +280,13 @@ const styles = StyleSheet.create({
   },
   passwordBox: {
     flexDirection: 'row',
-    alignItems: 'center', 
+    alignItems: 'center',
   },
   icon: {
     marginLeft: 10
   },
   inputBox: {
-    flexDirection:'row',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8f9fa',

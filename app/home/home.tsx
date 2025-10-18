@@ -505,7 +505,7 @@ export default function HomeScreen() {
                                                     <View style={{ marginTop: 16 }}>
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                                                             <Ionicons name="close-circle-outline" size={16} color="#F44336" />
-                                                            <Text style={{ marginLeft: 6, fontWeight: '700', color: '#1a1a1a' }}>พลาด</Text>
+                                                            <Text style={{ marginLeft: 6, fontWeight: '700', color: '#1a1a1a' }}>พลาดทานยา</Text>
                                                         </View>
                                                         {missed.map((entry, idx) => (
                                                             <View

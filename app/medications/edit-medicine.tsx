@@ -97,9 +97,11 @@ export default function EditMedicineScreen() {
                 selectedValue={medicineCategory}
                 onValueChange={v => setMedicineCategory(v)}
                 style={{ height: 50 }}
+                itemStyle={{ color: 'gray' }}
               >
-                <Picker.Item label="เม็ด" value="เม็ด" />
-                <Picker.Item label="น้ำ" value="น้ำ" />
+                <Picker.Item label="เม็ด" value="เม็ด" color="white" />
+                <Picker.Item label="น้ำ" value="น้ำ" color="white" />
+                <Picker.Item label="ทา" value="ทา" color="white" />
               </Picker>
             </View>
           </View>

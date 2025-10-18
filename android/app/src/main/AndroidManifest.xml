@@ -6,6 +6,12 @@
   <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <!-- Permission for Exact Alarms (Android 12 and above) -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+  <!-- Permission for Exact Alarms that work in battery optimization (Android 13 and above) -->
+  <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+  <!-- Permission to prevent device from sleeping (optional but recommended) -->
+  <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>

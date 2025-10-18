@@ -2,7 +2,7 @@ import { addToProfileOutbox, processProfileOutbox } from '@/utils/outbox';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -324,9 +324,17 @@ const MyProfileScreen = () => {
   });
 
   const CustomDatePicker: React.FC<DatePickerProps> = ({ visible, initialDate, onClose, onConfirm }) => {
+    const flatListRef = useRef<FlatList>(null);
     const [draftDate, setDraftDate] = useState<Date>(() => {
       if (initialDate && !isNaN(initialDate.getTime())) {
         return initialDate;
+      }
+      // ถ้าไม่มี initialDate ให้ใช้วันเกิดจากข้อมูลผู้ใช้
+      if (editedData.birth_date) {
+        const birthDate = parseYMDLocal(editedData.birth_date);
+        if (!isNaN(birthDate.getTime())) {
+          return birthDate;
+        }
       }
       return new Date();
     });
@@ -425,6 +433,20 @@ const MyProfileScreen = () => {
                   removeClippedSubviews
                   showsVerticalScrollIndicator={false}
                   style={[styles.pickerScroll, { maxHeight: 160 }]}
+                  initialScrollIndex={Math.max(0, years.findIndex(y => y === draftDate.getFullYear()) - 2)}
+                  onLayout={() => {
+                    // Scroll to the selected year
+                    const selectedIndex = years.findIndex(y => y === draftDate.getFullYear());
+                    if (selectedIndex > -1) {
+                      setTimeout(() => {
+                        flatListRef.current?.scrollToIndex({
+                          index: Math.max(0, selectedIndex - 2),
+                          animated: true
+                        });
+                      }, 100);
+                    }
+                  }}
+                  ref={flatListRef}
                 />
               </View>
 

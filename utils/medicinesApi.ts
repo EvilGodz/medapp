@@ -17,7 +17,7 @@ export const medicinesAPI = {
     return res.data;
   },
   // เพิ่มยาใหม่
-  create: async (data: { medicine_name: string; section_3_1_dosage?: string; userId?: string; medicine_category?: string ; section_4_precautions?: string }) => {
+  create: async (data: { medicine_name: string; section_3_1_dosage?: string; userId?: string; medicine_category?: string ; dose_limit?: string }) => {
     const res = await api.post('/medicines', data);
     return res.data;
   },
@@ -27,7 +27,7 @@ export const medicinesAPI = {
     return res.data;
   },
   // แก้ไขยา
-  update: async (id: string, data: { medicine_name: string; section_3_1_dosage?: string; medicine_category?: string; section_4_precautions?: string }) => {
+  update: async (id: string, data: { medicine_name: string; section_3_1_dosage?: string; medicine_category?: string; dose_limit?: string }) => {
     const res = await api.put(`/medicines/${id}`, data);
     return res.data;
   },

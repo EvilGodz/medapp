@@ -38,7 +38,7 @@ const FREQUENCIES = [
     },
     {
         id: '5',
-        label: 'ตามต้องการ',
+        label: 'ตามต้องการหรือเมื่อมีอาการ',
         icon: 'calendar-outline' as const,
         times: [],
     },
@@ -53,11 +53,11 @@ const DAY_FREQUENCIES = [
 
 const getDurationLabel = (value: number, dayFrequency: string) => {
     if (dayFrequency === 'ทุกวัน') {
-        if (value === 7) return 'ภายใน 7 วัน';
-        if (value === 30) return 'ภายใน 30 วัน';
+        if (value === 7) return 'ไม่เกิน 7 วัน';
+        if (value === 30) return 'ไม่เกิน 30 วัน';
     } else {
-        if (value === 7) return '7 ครั้ง (วัน)';
-        if (value === 30) return '30 ครั้ง (วัน)';
+        if (value === 7) return '7 ครั้ง';
+        if (value === 30) return '30 ครั้ง';
     }
     if (value === -1) return 'ต่อเนื่อง';
     if (value === 0) return 'กำหนดเอง';
@@ -125,11 +125,43 @@ export default function addNotificationScreen() {
         if (type === 'เม็ด') {
             // ตรวจสอบขนาดยาสำหรับยาเม็ด
             let tabletCount = num;
-            if (tabletType === 'ครึ่งเม็ด') {
-                tabletCount = num * 0.5; // แปลงจำนวนครึ่งเม็ดเป็นจำนวนเม็ด
-            }
-
-            if (tabletCount > 5) {
+            let currentUnit = tabletType;
+            
+            if (selectedMedicine?.dose_limit) {
+                const [limitAmount, limitUnit] = selectedMedicine.dose_limit.split(' ');
+                const limitNum = parseFloat(limitAmount);
+                
+                if (!isNaN(limitNum)) {
+                    // แปลงค่าปัจจุบันให้เป็นหน่วยเดียวกับ limit
+                    if (tabletType === 'ครึ่งเม็ด') {
+                        tabletCount = num * 0.5;
+                        currentUnit = 'เม็ด';
+                    }
+                    
+                    if (tabletCount > limitNum) {
+                        return new Promise((resolve) => {
+                            Alert.alert(
+                                "คำเตือนขนาดยา",
+                                `ขนาดยาที่ระบุ (${num} ${tabletType}) เกินขนาดแนะนำ\n` +
+                                `ขนาดแนะนำ: ${selectedMedicine.dose_limit}\n` +
+                                `ต้องการยืนยันหรือไม่?`,
+                                [
+                                    {
+                                        text: "ยกเลิก",
+                                        style: "cancel",
+                                        onPress: () => resolve(false)
+                                    },
+                                    {
+                                        text: "ยืนยัน",
+                                        onPress: () => resolve(true)
+                                    }
+                                ],
+                                { cancelable: false }
+                            );
+                        });
+                    }
+                }
+            } else if (tabletCount > 5) { // ถ้าไม่มีข้อมูลจาก API ใช้ค่าเริ่มต้น
                 return new Promise((resolve) => {
                     Alert.alert(
                         "คำเตือนขนาดยา",
@@ -161,8 +193,49 @@ export default function addNotificationScreen() {
 
             // แปลงเป็น ml
             mlValue = num * units[dosageUnit];
+            
+            if (selectedMedicine?.dose_limit) {
+                const [limitAmount, limitUnit] = selectedMedicine.dose_limit.split(' ');
+                const limitNum = parseFloat(limitAmount);
+                
+                if (!isNaN(limitNum)) {
+                    // แปลงค่า limit เป็น ml
+                    let limitMl = limitNum;
+                    if (limitUnit === 'ช้อนชา') limitMl = limitNum * 5;
+                    if (limitUnit === 'ช้อนโต๊ะ') limitMl = limitNum * 15;
+                    
+                    if (mlValue > limitMl) {
+                        // คำนวณค่าเทียบเท่าในหน่วยอื่น
+                        const teaspoons = (mlValue / 5).toFixed(1);
+                        const tablespoons = (mlValue / 15).toFixed(1);
 
-            if (mlValue > 60) {
+                        return new Promise((resolve) => {
+                            Alert.alert(
+                                "คำเตือนขนาดยา",
+                                `ขนาดยาที่ระบุ (${num} ${dosageUnit}) เกินขนาดแนะนำ\n` +
+                                `ขนาดแนะนำ: ${selectedMedicine.dose_limit}\n\n` +
+                                `ขนาดที่ระบุเทียบเท่า:\n` +
+                                `${mlValue.toFixed(1)} ml\n` +
+                                `${teaspoons} ช้อนชา\n` +
+                                `${tablespoons} ช้อนโต๊ะ\n` +
+                                `ต้องการยืนยันหรือไม่?`,
+                                [
+                                    {
+                                        text: "ยกเลิก",
+                                        style: "cancel",
+                                        onPress: () => resolve(false)
+                                    },
+                                    {
+                                        text: "ยืนยัน",
+                                        onPress: () => resolve(true)
+                                    }
+                                ],
+                                { cancelable: false }
+                            );
+                        });
+                    }
+                }
+            } else if (mlValue > 60) { // ถ้าไม่มีข้อมูลจาก API ใช้ค่าเริ่มต้น
                 // คำนวณค่าเทียบเท่าในหน่วยอื่น
                 const teaspoons = (mlValue / 5).toFixed(1);
                 const tablespoons = (mlValue / 15).toFixed(1);
@@ -582,6 +655,12 @@ export default function addNotificationScreen() {
                                         setErrors({ ...errors, name: '' });
                                     }
                                 }}
+                                onBlur={() => {
+                                    // รอสักครู่ก่อนที่จะซ่อน suggestions เพื่อให้สามารถกดเลือกได้
+                                    setTimeout(() => {
+                                        setSuggestions([]);
+                                    }, 200);
+                                }}
                             />
                             {errors.name && (
                                 <Text style={styles.errorText}>{errors.name}</Text>
@@ -592,12 +671,10 @@ export default function addNotificationScreen() {
                                 <TouchableOpacity
                                     style={[styles.typeButton, dosageType === 'เม็ด' ? styles.typeButtonActive : styles.typeButtonInactive]}
                                     onPress={() => {
-                                        if (dosageType === 'ยาทา') {
-                                            setForm(prev => ({
-                                                ...prev,
-                                                dosage: ''
-                                            }));
-                                        }
+                                        setForm(prev => ({
+                                            ...prev,
+                                            dosage: '' // ล้างข้อมูลขนาดยาเมื่อเปลี่ยนประเภท
+                                        }));
                                         setDosageType('เม็ด');
                                     }}
                                 >
@@ -606,12 +683,10 @@ export default function addNotificationScreen() {
                                 <TouchableOpacity
                                     style={[styles.typeButton, dosageType === 'ยาน้ำ' ? styles.typeButtonActive : styles.typeButtonInactive]}
                                     onPress={() => {
-                                        if (dosageType === 'ยาทา') {
-                                            setForm(prev => ({
-                                                ...prev,
-                                                dosage: ''
-                                            }));
-                                        }
+                                        setForm(prev => ({
+                                            ...prev,
+                                            dosage: '' // ล้างข้อมูลขนาดยาเมื่อเปลี่ยนประเภท
+                                        }));
                                         setDosageType('ยาน้ำ');
                                     }}
                                 >
@@ -623,7 +698,8 @@ export default function addNotificationScreen() {
                                         setDosageType('ยาทา');
                                         setForm(prev => ({
                                             ...prev,
-                                            dosage: 'ทาบริเวณที่มีอาการ'
+                                            dosage: 'ทาบริเวณที่มีอาการ', // สำหรับยาทาให้ใส่ค่าเริ่มต้น
+                                            mealTiming: 'ไม่ระบุ' // ตั้งค่าเวลากับมื้ออาหารเป็น "ไม่ระบุ"
                                         }));
                                     }}
                                 >
@@ -737,6 +813,26 @@ export default function addNotificationScreen() {
                                                 setForm({ ...form, name: med.medicine_name });
                                                 setSelectedMedicine(med);
                                                 setSuggestions([]);
+                                                
+                                                // Parse dose limit and set appropriate values
+                                                if (med.dose_limit) {
+                                                    const [amount, unit] = med.dose_limit.split(' ');
+                                                    if (unit === 'เม็ด' || unit === 'ครึ่งเม็ด') {
+                                                        setDosageType('เม็ด');
+                                                        setTabletType(unit);
+                                                        setForm(prev => ({
+                                                            ...prev,
+                                                            dosage: amount
+                                                        }));
+                                                    } else if (unit === 'ml' || unit === 'ช้อนชา' || unit === 'ช้อนโต๊ะ') {
+                                                        setDosageType('ยาน้ำ');
+                                                        setDosageUnit(unit);
+                                                        setForm(prev => ({
+                                                            ...prev,
+                                                            dosage: amount
+                                                        }));
+                                                    }
+                                                }
                                             }}
                                             style={styles.suggestionItem}
                                         >
@@ -750,50 +846,57 @@ export default function addNotificationScreen() {
                             <Text style={styles.errorText}>{errors.dosage}</Text>
                         )}
                     </View>
-                    <Text style={styles.sectionTitle}>เวลากับมื้ออาหาร</Text>
-                        {renderMealTiming()}
+                    <Text style={styles.sectionTitle}>จำนวนครั้งต่อวัน</Text>
+                    {errors.frequency && (
+                        <Text style={styles.errorText}>{errors.frequency}</Text>
+                    )}
+                    {renderFrequencyOptions()}
+
+                    
+
+                    {dosageType !== 'ยาทา' && (
+                        <>
+                            <Text style={styles.sectionTitle}>เวลากับมื้ออาหาร</Text>
+                            {renderMealTiming()}
+                        </>
+                    )}
+
+                    {form.frequency && form.frequency !== 'ตามต้องการ' && (
+                        <View style={styles.timesContainer}>
+                            <Text style={styles.sectionTitle}>เวลาทานยา</Text>
+                            {form.times.map((time, index) => (
+                                <View key={index}>
+                                    <Text style={styles.timeLabel}>
+                                        เวลาทานยาครั้งที่ {index + 1}
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={styles.timeButton}
+                                        onPress={() => {
+                                            setShowTimePicker(index);
+                                        }}
+                                    >
+                                        <View style={styles.timeIconContainer}>
+                                            <Ionicons name="time-outline" size={20} color={'#1a8e2d'} />
+                                        </View>
+                                        <Text style={styles.timeButtonText}>{time}</Text>
+                                        <Ionicons name="chevron-forward" size={20} color={'#666'} />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    )}
                     <View style={styles.container}>
-                        
-                        
+
+
                         <Text style={styles.sectionTitle}>ตารางการทานยา</Text>
                         {renderDayFrequencyOptions()}
                         <Text style={styles.sectionTitle}>
-                            {selectedDayFrequency === 'ทุกวัน' ? 'จำนวนวันที่ทาน' : 'จำนวนครั้งที่ทาน'}
+                            {selectedDayFrequency === 'ทุกวัน' ? 'จำนวนวันที่ต้องทาน' : 'จำนวนครั้งที่ต้องทาน'}
                         </Text>
                         {errors.duration && (
                             <Text style={styles.errorText}>{errors.duration}</Text>
                         )}
                         {renderDurationOptions()}
-                        <Text style={styles.sectionTitle}>จำนวนครั้งต่อวัน</Text>
-                        {errors.frequency && (
-                            <Text style={styles.errorText}>{errors.frequency}</Text>
-                        )}
-                        {renderFrequencyOptions()}
-
-                        {form.frequency && form.frequency !== 'ตามต้องการ' && (
-                            <View style={styles.timesContainer}>
-                                <Text style={styles.sectionTitle}>เวลาทานยา</Text>
-                                {form.times.map((time, index) => (
-                                    <View key={index}>
-                                        <Text style={styles.timeLabel}>
-                                            เวลาทานยาครั้งที่ {index + 1}
-                                        </Text>
-                                        <TouchableOpacity
-                                            style={styles.timeButton}
-                                            onPress={() => {
-                                                setShowTimePicker(index);
-                                            }}
-                                        >
-                                            <View style={styles.timeIconContainer}>
-                                                <Ionicons name="time-outline" size={20} color={'#1a8e2d'} />
-                                            </View>
-                                            <Text style={styles.timeButtonText}>{time}</Text>
-                                            <Ionicons name="chevron-forward" size={20} color={'#666'} />
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
 
                         <Text style={styles.sectionTitle}>วันที่เริ่มทานยา</Text>
                         <TouchableOpacity
@@ -1337,7 +1440,7 @@ const styles = StyleSheet.create({
     },
     relative: { position: 'relative' },
     dosageRow: { flexDirection: 'row', alignItems: 'center' },
-    timeLabel: { 
+    timeLabel: {
         fontSize: 14,
         color: '#666',
         marginBottom: 4,
