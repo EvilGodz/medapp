@@ -1,10 +1,10 @@
+import { getApiBaseUrl } from '@/utils/env';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { ApiResponse } from '../../types/types';
 
-const CALL_API = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://192.168.1.89:3000';
+const CALL_API = getApiBaseUrl();
 
 const EmailVerificationScreen: React.FC = () => {
   const router = useRouter();
