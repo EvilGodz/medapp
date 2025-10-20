@@ -8,12 +8,24 @@ import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpac
 export default function EditMedicineScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [medicine_name, setMedicineName] = useState('');
-  const [section_4_precautions, setSection4Precautions] = useState('');
-  const [dosage, setDosage] = useState('');
-  const [medicineCategory, setMedicineCategory] = useState<'เม็ด' | 'น้ำ'>('เม็ด');
+  const [section_3_1_dosage, setSection3_1_Dosage] = useState('');
+  const [dose_limit, setDoseLimit] = useState('');
+  const [doseUnit, setDoseUnit] = useState('เม็ด');
+  const [medicineCategory, setMedicineCategory] = useState<'ชนิดเม็ด' | 'ชนิดน้ำ' | 'ยาทา'>('ชนิดเม็ด');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  const getDoseUnits = (category: string) => {
+    switch (category) {
+      case 'ชนิดเม็ด':
+        return ['เม็ด', 'ครึ่งเม็ด'];
+      case 'ชนิดน้ำ':
+        return ['ml', 'ช้อนชา', 'ช้อนโต๊ะ'];
+      default:
+        return [];
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -23,8 +35,13 @@ export default function EditMedicineScreen() {
         const med = await medicinesAPI.getById(id);
         if (med) {
           setMedicineName(med.medicine_name);
-          setDosage(med.section_3_1_dosage || '');
-          setMedicineCategory((med.medicine_category as 'เม็ด' | 'น้ำ') || 'เม็ด');
+          setSection3_1_Dosage(med.section_3_1_dosage || '');
+          if (med.dose_limit) {
+            const [amount, unit] = med.dose_limit.split(' ');
+            setDoseLimit(amount || '');
+            setDoseUnit(unit || 'เม็ด');
+          }
+          setMedicineCategory((med.medicine_category as typeof medicineCategory) || 'ชนิดเม็ด');
         }
       } catch (e) {
         setError('ไม่พบข้อมูลยา');
@@ -35,15 +52,41 @@ export default function EditMedicineScreen() {
     fetchData();
   }, [id]);
 
+  const validateDosage = (value: string) => {
+    // Allow only positive numbers with up to 2 digits for whole numbers and 2 decimal places
+    const regex = /^(?:\d{1,2}|\d{1,2}\.\d{1,2})$/;
+    const number = parseFloat(value);
+    return regex.test(value) && !isNaN(number) && number > 0;
+  };
+
   const handleSave = async () => {
     if (!medicine_name.trim()) {
       setError('กรุณากรอกชื่อยา');
       return;
     }
+    if (medicineCategory !== 'ยาทา') {
+      if (!dose_limit) {
+        setError('กรุณากรอกขนาดยา');
+        return;
+      }
+      if (!validateDosage(dose_limit)) {
+        setError('กรุณากรอกขนาดยาเป็นตัวเลขที่มากกว่า 0');
+        return;
+      }
+    }
     setLoading(true);
     setError('');
     try {
-      await medicinesAPI.update(id, { medicine_name, section_3_1_dosage: dosage, medicine_category: medicineCategory, section_4_precautions });
+      const formattedDoseLimit = medicineCategory !== 'ยาทา' 
+        ? `${dose_limit} ${doseUnit}`  // กรณียาเม็ดหรือยาน้ำ
+        : "ทาบริเวณที่มีอาการ";       // กรณียาทา
+      
+      await medicinesAPI.update(id, { 
+        medicine_name, 
+        section_3_1_dosage, 
+        medicine_category: medicineCategory, 
+        dose_limit: formattedDoseLimit 
+      });
       Alert.alert('สำเร็จ', 'แก้ไขข้อมูลยาเรียบร้อยแล้ว', [
         { text: 'ตกลง', onPress: () => router.back() }
       ]);
@@ -81,38 +124,98 @@ export default function EditMedicineScreen() {
             />
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>ขนาดยา</Text>
-            <TextInput
-              style={styles.input}
-              value={dosage}
-              onChangeText={setDosage}
-              placeholder="ขนาดยา (เช่น 500mg)"
-              placeholderTextColor="gray"
-            />
-          </View>
-          <View style={styles.inputGroup}>
             <Text style={styles.label}>ประเภท</Text>
-            <View style={{ borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, backgroundColor: '#fafafa' }}>
-              <Picker
-                selectedValue={medicineCategory}
-                onValueChange={v => setMedicineCategory(v)}
-                style={{ height: 50 }}
-                itemStyle={{ color: 'gray' }}
-              >
-                <Picker.Item label="เม็ด" value="เม็ด" color="white" />
-                <Picker.Item label="น้ำ" value="น้ำ" color="white" />
-                <Picker.Item label="ทา" value="ทา" color="white" />
-              </Picker>
+            <View style={styles.optionsGrid}>
+              {['ชนิดเม็ด', 'ชนิดน้ำ', 'ยาทา'].map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.optionsCard,
+                    medicineCategory === category && styles.selectedOptionCard
+                  ]}
+                  onPress={() => {
+                    setMedicineCategory(category as typeof medicineCategory);
+                    if (category === 'ยาทา') {
+                      setDoseLimit('ทาบริเวณที่มีอาการ');
+                    } else {
+                      setDoseLimit('');
+                      const units = getDoseUnits(category);
+                      if (units.length > 0) {
+                        setDoseUnit(units[0]);
+                      }
+                    }
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.optionsLabel,
+                      medicineCategory === category && styles.selectedOptionsLabel
+                    ]}>
+                    {category === 'ชนิดเม็ด' ? 'เม็ด' :
+                     category === 'ชนิดน้ำ' ? 'ยาน้ำ' : 'ยาทา'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
+          {medicineCategory !== 'ยาทา' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>ขนาดยา</Text>
+              <View style={styles.doseContainer}>
+                <TextInput
+                  style={[styles.input, styles.doseInput]}
+                  value={dose_limit}
+                  onChangeText={(text) => {
+                    // Remove any non-numeric characters except decimal point
+                    const cleanText = text.replace(/[^0-9.]/g, '');
+                    // Ensure only one decimal point
+                    const parts = cleanText.split('.');
+                    if (parts.length > 2) return;
+                    // Limit whole number to 2 digits
+                    if (parts[0].length > 2) return;
+                    // Limit decimal places to 2
+                    if (parts.length === 2 && parts[1].length > 2) return;
+                    // Don't allow leading zeros unless it's a decimal
+                    if (parts[0].length > 1 && parts[0][0] === '0' && parts[0][1] !== '.') return;
+                    setDoseLimit(cleanText);
+                  }}
+                  placeholder="ขนาด"
+                  placeholderTextColor="gray"
+                  keyboardType="decimal-pad"
+                />
+                <View style={styles.doseUnitContainer}>
+                  {getDoseUnits(medicineCategory).map((unit) => (
+                    <TouchableOpacity
+                      key={unit}
+                      style={[
+                        styles.doseUnitButton,
+                        doseUnit === unit && styles.selectedOptionCard
+                      ]}
+                      onPress={() => setDoseUnit(unit)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionsLabel,
+                          doseUnit === unit && styles.selectedOptionsLabel
+                        ]}>
+                        {unit}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>หมายเหตุ</Text>
             <TextInput
               style={styles.input}
-              value={section_4_precautions}
-              onChangeText={setSection4Precautions}
-              placeholder="หมายเหตุ (เช่น ห้ามใช้ร่วมกับยาอื่น)"
+              value={section_3_1_dosage}
+              onChangeText={setSection3_1_Dosage}
+              placeholder="หมายเหตุ (เช่น วิธีใช้ยา คำแนะนำเพิ่มเติม)"
               placeholderTextColor="gray"
+              multiline={true}
+              numberOfLines={4}
             />
           </View>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -129,7 +232,6 @@ export default function EditMedicineScreen() {
   );
 }
 
-import { Picker } from '@react-native-picker/picker';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -141,6 +243,67 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: Platform.OS === 'ios' ? 140 : 120,
+  },
+  doseContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  doseInput: {
+    flex: 1,
+  },
+  doseUnitContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  doseUnitButton: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  optionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -5,
+    marginTop: 10,
+  },
+  optionsCard: {
+    flex: 1,
+    minWidth: 100,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 12,
+    margin: 5,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  selectedOptionCard: {
+    backgroundColor: '#1a8e2d',
+    borderColor: '#1a8e2d',
+  },
+  optionsLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+  },
+  selectedOptionsLabel: {
+    color: 'white',
   },
   content: {
     flex: 1,
